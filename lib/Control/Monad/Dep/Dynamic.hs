@@ -38,4 +38,7 @@ import Data.Functor.Identity
 import Data.Function (fix)
 import Data.String
 import Data.Type.Equality (type (==))
+import Data.Dynamic
+import Data.Typeable
 
+data DynamicEnv = DynamicEnv
