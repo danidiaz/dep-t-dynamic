@@ -50,16 +50,16 @@ import Type.Reflection qualified as R
 data DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
   = DynamicEnv (HashMap TypeRep Dynamic)
 
-emptyEnv :: forall h m. DynamicEnv h m
-emptyEnv = DynamicEnv H.empty
+emptyDynEnv :: forall h m. DynamicEnv h m
+emptyDynEnv = DynamicEnv H.empty
 
-addDep ::
+addDynDep ::
   forall r_ h m.
   (Typeable r_, Typeable h, Typeable m) =>
   h (r_ m) ->
   DynamicEnv h m ->
   DynamicEnv h m
-addDep component (DynamicEnv dict) =
+addDynDep component (DynamicEnv dict) =
   let key = typeRep (Proxy @r_)
    in DynamicEnv (H.insert key (toDyn component) dict)
 
@@ -76,5 +76,9 @@ instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
 data DepNotFound = DepNotFound TypeRep deriving (Show)
 
 instance Exception DepNotFound
+
+instance Phased DynamicEnv where
+    traverseH trans env = undefined
+    liftA2H trans env env' = undefined
 
 
