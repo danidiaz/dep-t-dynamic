@@ -50,6 +50,20 @@ data DynamicEnv (h :: Type -> Type) (m :: Type -> Type) =
 emptyDynEnv :: forall h m . (Typeable h, Typeable m) => DynamicEnv h m 
 emptyDynEnv = DynamicEnv (R.typeRep @h) (R.typeRep @m) H.empty
 
+addDynDep :: forall r_ h m . (Typeable r_, Typeable h, Typeable m) => h (r_ m) -> DynamicEnv h m -> DynamicEnv h m
+addDynDep component (DynamicEnv htr mtr dict) = 
+    let key = typeRep (Proxy @r_)
+     in DynamicEnv htr mtr (H.insert key (toDyn component) dict)
+
+instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
+    dep (DynamicEnv _ _ dict) =  
+        case H.lookup (typeRep (Proxy @r_)) dict of
+            Nothing -> error "oops"
+            Just (d :: Dynamic) -> case fromDynamic @(r_ m) d of
+                Nothing -> error "oops"
+                Just component -> component
+
+
 
 
 -- data InductiveEnv (rs :: [(Type -> Type) -> Type]) (h :: Type -> Type) (m :: Type -> Type) where
