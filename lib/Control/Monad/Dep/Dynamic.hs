@@ -52,7 +52,7 @@ import Type.Reflection qualified as R
 import Data.Hashable
 
 data DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
-  = DynamicEnv (HashMap TypeRep Dynamic)
+  = DynamicEnv (HashMap SomeComponentRep Dynamic)
 
 emptyDynEnv :: forall h m. DynamicEnv h m
 emptyDynEnv = DynamicEnv H.empty
@@ -64,12 +64,12 @@ addDynDep ::
   DynamicEnv h m ->
   DynamicEnv h m
 addDynDep component (DynamicEnv dict) =
-  let key = typeRep (Proxy @r_)
+  let key = SomeComponentRep (R.typeRep @r_)
    in DynamicEnv (H.insert key (toDyn component) dict)
 
 instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
   dep (DynamicEnv dict) =
-    case H.lookup (typeRep (Proxy @r_)) dict of
+    case H.lookup (SomeComponentRep (R.typeRep @r_)) dict of
       Nothing ->
         throw (DepNotFound (typeRep (Proxy @(r_ m))))
       Just (d :: Dynamic) ->
@@ -96,10 +96,9 @@ instance Phased DynamicEnv where
     traverseH trans (DynamicEnv dict) = DynamicEnv <$> H.traverseWithKey dynTrans dict
       where
       dynTrans k v = case k of
-        R.SomeTypeRep tr -> undefined
+        SomeComponentRep tr -> undefined
 
     --    => (forall x . h x -> f (g x)) -> env_ h m -> f (env_ g m)
-
     liftA2H trans env env' = undefined
 
 data SomeComponentRep where
