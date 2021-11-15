@@ -104,7 +104,7 @@ instance Phased DynamicEnv where
           Just hcomponent -> toDyn <$> trans hcomponent
       dynTrans k d = case k of
         SomeComponentRep tr -> 
-            withComponent tr d
+            R.withTypeable tr (withComponent tr d)
 
     --    => (forall x . h x -> f (g x)) -> env_ h m -> f (env_ g m)
     liftA2H trans env env' = undefined
