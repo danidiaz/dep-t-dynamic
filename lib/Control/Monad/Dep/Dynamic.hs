@@ -94,16 +94,17 @@ instance Phased DynamicEnv where
         -> f (DynamicEnv g m)
     traverseH trans (DynamicEnv dict) = DynamicEnv <$> H.traverseWithKey dynTrans dict
       where
-      withComponent :: forall (r_ :: (Type -> Type) -> Type) d f g h. Typeable r_ 
-                    => Dynamic
+      withComponent :: forall (r_ :: (Type -> Type) -> Type) .  Typeable r_
+                    => R.TypeRep r_ 
+                    -> Dynamic
                     -> f Dynamic
-      withComponent d = 
+      withComponent _ d = 
         case fromDynamic @(h (r_ m)) d of
           Nothing -> error "Impossible failure converting dep."
           Just hcomponent -> toDyn <$> trans hcomponent
       dynTrans k d = case k of
         SomeComponentRep tr -> 
-            R.withTypeable tr (withComponent d)
+            withComponent tr d
 
     --    => (forall x . h x -> f (g x)) -> env_ h m -> f (env_ g m)
     liftA2H trans env env' = undefined
