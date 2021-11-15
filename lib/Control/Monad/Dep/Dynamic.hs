@@ -77,9 +77,9 @@ instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
       Nothing ->
         throw (DepNotFound (typeRep (Proxy @(r_ m))))
       Just (d :: Dynamic) ->
-        case fromDynamic @(r_ m) d of
+        case fromDynamic @(Identity (r_ m)) d of
           Nothing -> error "Impossible failure converting dep."
-          Just component -> component
+          Just (Identity component) -> component
 
 data DepNotFound = DepNotFound TypeRep deriving (Show)
 
