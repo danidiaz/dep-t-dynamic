@@ -25,6 +25,9 @@
 -- | This module
 module Control.Monad.Dep.Dynamic
   (
+    DynamicEnv
+  , insertDep
+  , DepNotFound
   )
 where
 
@@ -107,7 +110,35 @@ instance Phased DynamicEnv where
             R.withTypeable tr (withComponent tr d)
 
     --    => (forall x . h x -> f (g x)) -> env_ h m -> f (env_ g m)
-    liftA2H trans env env' = undefined
+    liftA2H
+        :: forall (a :: Type -> Type) (f :: Type -> Type) (f' :: Type -> Type) (m :: Type -> Type) .
+        ( Typeable a
+        , Typeable f
+        , Typeable f'
+        , Typeable m
+        )
+        -- | 
+        => (forall x. a x -> f x -> f' x) 
+        -- |
+        -> DynamicEnv a m 
+        -- |
+        -> DynamicEnv f m 
+        -- |
+        -> DynamicEnv f' m
+    liftA2H trans (DynamicEnv dicta) (DynamicEnv dictb) = DynamicEnv (H.mapWithKey dynTrans (H.intersectionWith (,) dicta dictb))
+      where
+      withComponent :: forall (r_ :: (Type -> Type) -> Type) . Typeable r_
+                    => R.TypeRep r_ 
+                    -> (Dynamic, Dynamic)
+                    -> Dynamic
+      withComponent _ (da, df)  = 
+        case (fromDynamic @(a (r_ m)) da, fromDynamic @(f (r_ m)) df) of
+          (Nothing, _) -> error "Impossible failure converting left dep."
+          (_, Nothing) -> error "Impossible failure converting right dep."
+          (Just acomponent, Just fcomponent) -> toDyn (trans acomponent fcomponent)
+      dynTrans k dpair = case k of
+        SomeComponentRep tr -> 
+            R.withTypeable tr (withComponent tr dpair)
 
 data SomeComponentRep where
     SomeComponentRep :: forall (a :: (Type -> Type) -> Type) . !(R.TypeRep a) -> SomeComponentRep
