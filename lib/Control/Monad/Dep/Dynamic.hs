@@ -20,6 +20,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module
 module Control.Monad.Dep.Dynamic
@@ -51,19 +52,17 @@ import GHC.TypeLits
 import Type.Reflection qualified as R
 import Data.Hashable
 
-data DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
+newtype DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
   = DynamicEnv (HashMap SomeComponentRep Dynamic)
+  deriving newtype (Semigroup, Monoid)
 
-emptyDynEnv :: forall h m. DynamicEnv h m
-emptyDynEnv = DynamicEnv H.empty
-
-addDynDep ::
+insertDep ::
   forall r_ h m.
   (Typeable r_, Typeable h, Typeable m) =>
   h (r_ m) ->
   DynamicEnv h m ->
   DynamicEnv h m
-addDynDep component (DynamicEnv dict) =
+insertDep component (DynamicEnv dict) =
   let key = SomeComponentRep (R.typeRep @r_)
    in DynamicEnv (H.insert key (toDyn component) dict)
 
