@@ -28,6 +28,8 @@ module Control.Monad.Dep.Dynamic
     DynamicEnv
   , insertDep
   , DepNotFound
+  -- * Re-exports
+  , mempty
   )
 where
 
