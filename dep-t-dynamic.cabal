@@ -30,7 +30,7 @@ common common
 
 library
   import: common
-  exposed-modules:     Control.Monad.Dep.Dynamic
+  exposed-modules:     Dep.Dynamic
   hs-source-dirs:      lib 
 
 test-suite tests

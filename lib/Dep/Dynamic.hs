@@ -23,7 +23,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module
-module Control.Monad.Dep.Dynamic
+module Dep.Dynamic
   (
     DynamicEnv
   , insertDep
@@ -33,10 +33,10 @@ module Control.Monad.Dep.Dynamic
   )
 where
 
+import Dep.Env
+import Dep.Has
 import Control.Applicative
 import Control.Exception
-import Control.Monad.Dep.Env
-import Control.Monad.Dep.Has
 import Data.Coerce
 import Data.Dynamic
 import Data.Function (fix)
