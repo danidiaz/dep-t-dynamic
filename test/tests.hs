@@ -57,6 +57,7 @@ import Data.Text qualified as Text
 import Data.Function ((&))
 import Data.Functor ((<&>), ($>))
 import Data.String
+import Data.Typeable
 
 type Logger :: (Type -> Type) -> Type
 newtype Logger d = Logger {
@@ -213,6 +214,46 @@ testEnvConstruction = do
         Just result <- call inspect resourceId
         assertEqual "" "foobar" $ result
 
+
+envMissing :: DynamicEnv (Phases DynamicEnv IO) IO
+envMissing =
+      insertDep (
+        ("repository",()) `bindPhase` \() ->  
+        skipPhase @Configurator $
+        allocateMap `bindPhase` \ref -> 
+        constructor (makeInMemoryRepository ref)
+      )
+    $ insertDep (
+        ("controller",()) `bindPhase` \() ->  
+        skipPhase @Configurator $
+        skipPhase @Allocator $ 
+        constructor makeController
+      )
+    $ mempty
+
+
+envMissing' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor DynamicEnv IO) IO)
+envMissing' = traverseH trans envMissing
+    where 
+    trans (Compose (fieldName, Compose (Kleisli f))) =
+        Kleisli \o -> explicitParseField f o (fromString fieldName) 
+
+
+testMissingDep :: Assertion
+testMissingDep = do
+    let parseResult = eitherDecode' (fromString "{ \"logger\" : { \"messagePrefix\" : \"[foo]\" }, \"repository\" : null, \"controller\" : null }")
+    print parseResult 
+    let Right value = parseResult 
+        Kleisli (withObject "configuration" -> parser) = envMissing'
+        Right allocators = parseEither parser value 
+    runContT (pullPhase @Allocator allocators) \constructors -> do
+        let (asCall -> call) = fixEnv constructors
+        e <- tryJust (fromException @DepNotFound) (call create)
+        case e of
+            Left (DepNotFound x) | x == typeRep (Proxy @(Logger IO)) -> pure ()
+            _ -> assertFailure "exception expected"
+
+
 --
 --
 --
@@ -222,6 +263,7 @@ tests =
     "All"
     [
         testCase "environmentConstruction" testEnvConstruction
+    ,   testCase "missing" testMissingDep
     ]
 
 main :: IO ()

@@ -27,7 +27,7 @@ module Dep.Dynamic
   (
     DynamicEnv
   , insertDep
-  , DepNotFound
+  , DepNotFound (..)
   -- * Re-exports
   , mempty
   )
