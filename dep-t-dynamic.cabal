@@ -22,7 +22,7 @@ common common
                        transformers ^>= 0.5.0.0,
                        mtl ^>= 2.2,
                        unliftio-core ^>= 0.2.0.0,
-                       dep-t ^>= 0.5.0.0,
+                       dep-t ^>= 0.5.2.0,
                        containers >= 0.6,
                        unordered-containers >= 0.2.14,
                        hashable >=1.0.1.1 && <1.50
@@ -31,6 +31,7 @@ common common
 library
   import: common
   exposed-modules:     Dep.Dynamic
+  other-modules:       Dep.Dynamic.Internal
   hs-source-dirs:      lib 
 
 test-suite tests
