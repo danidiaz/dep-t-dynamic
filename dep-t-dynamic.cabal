@@ -30,7 +30,8 @@ common common
 
 library
   import: common
-  exposed-modules:     Dep.Dynamic
+  exposed-modules:     Dep.SimpleChecked
+                       Dep.Dynamic
   other-modules:       Dep.Dynamic.Internal
   hs-source-dirs:      lib 
 
