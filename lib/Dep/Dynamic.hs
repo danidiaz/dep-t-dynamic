@@ -111,7 +111,9 @@ instance Phased DynamicEnv where
         SomeComponentRep tr -> 
             R.withTypeable tr (withComponent tr d)
 
-    --    => (forall x . h x -> f (g x)) -> env_ h m -> f (env_ g m)
+    -- | Mismatches in key sets are resolved by working with their intersection,
+    -- like the @Apply@ instance for @Data.Map@ in the \"semigroupoids\"
+    -- package.
     liftA2H
         :: forall (a :: Type -> Type) (f :: Type -> Type) (f' :: Type -> Type) (m :: Type -> Type) .
         ( Typeable a
