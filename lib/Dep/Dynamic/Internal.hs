@@ -50,7 +50,10 @@ import Data.Hashable
 
 newtype DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
   = DynamicEnv (HashMap SomeComponentRep Dynamic)
-  deriving newtype (Semigroup, Monoid)
+
+-- | In '(<>)', the entry for the left map is kept.
+deriving newtype instance Semigroup (DynamicEnv h m)
+deriving newtype instance Monoid (DynamicEnv h m)
 
 -- | Insert a record component wrapped in the environment's phase parameter @h@.
 insertDep ::
@@ -73,6 +76,8 @@ deleteDep (DynamicEnv dict) =
   let key = SomeComponentRep (R.typeRep @r_)
    in DynamicEnv (H.delete key dict)
 
+-- | 'DynamicEnv' has a 'Data.Has.Has' instance for every possible component. If the
+-- component is not actually in the environment, 'DepNotFound' is thrown.
 instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
   dep (DynamicEnv dict) =
     case H.lookup (SomeComponentRep (R.typeRep @r_)) dict of
@@ -83,6 +88,8 @@ instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
           Nothing -> error "Impossible failure converting dep."
           Just (Identity component) -> component
 
+-- | Exception thrown by 'dep' when the component we are looking for is not
+-- present in the environment.
 data DepNotFound = DepNotFound TypeRep deriving (Show)
 
 instance Exception DepNotFound
