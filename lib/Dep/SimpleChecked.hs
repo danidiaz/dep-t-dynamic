@@ -2,18 +2,24 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
-module Dep.SimpleChecked where
+{-# LANGUAGE ImportQualifiedPost #-}
+module Dep.SimpleChecked (CheckedEnv) where
 
 import Data.Kind
 import Dep.Env
 import Data.Functor.Compose
 import GHC.TypeLits
+import Dep.Dynamic
+import Data.SOP qualified as SOP
 
-data CheckedEnv = CheckedEnv 
+data CheckedEnv phases m = CheckedEnv (DynamicEnv (UnderConstruction phases DynamicEnv m) m)
 
-type UnfoldPhases :: ((Type -> Type) -> (Type -> Type) -> Type) -> (Type -> Type) -> [Type -> Type] -> Type -> Type
-type family UnfoldPhases e_ m phases where
-    UnfoldPhases e_ m '[] = Constructor e_ m
-    UnfoldPhases e_ m (p ': ps) = p `Compose` UnfoldPhases e_ m ps
+type UnderConstruction :: [Type -> Type] -> ((Type -> Type) -> (Type -> Type) -> Type) -> (Type -> Type) -> Type -> Type
+newtype UnderConstruction phases e_ m x = UnderConstruction (ExpandPhases phases e_ m x)
+
+type ExpandPhases :: [Type -> Type] -> ((Type -> Type) -> (Type -> Type) -> Type) -> (Type -> Type) -> Type -> Type
+type family ExpandPhases phases e_ m where
+    ExpandPhases '[] e_ m = Constructor e_ m
+    ExpandPhases (p ': ps) e_ m  = p `Compose` ExpandPhases ps e_ m
 
 
