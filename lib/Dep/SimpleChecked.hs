@@ -20,12 +20,12 @@ import Data.SOP qualified as SOP
 data CheckedEnv phases m = CheckedEnv (DynamicEnv (UnderConstruction phases m) m)
 
 type UnderConstruction :: [Type -> Type] -> (Type -> Type) -> Type -> Type
-newtype UnderConstruction phases m x = UnderConstruction (ExpandPhases phases DynamicEnv m x)
+newtype UnderConstruction phases m x = UnderConstruction (ExpandPhases phases m x)
 
-type ExpandPhases :: [Type -> Type] -> ((Type -> Type) -> (Type -> Type) -> Type) -> (Type -> Type) -> Type -> Type
-type family ExpandPhases phases e_ m where
-    ExpandPhases '[] e_ m = Constructor e_ m
-    ExpandPhases (p ': ps) e_ m  = p `Compose` ExpandPhases ps e_ m
+type ExpandPhases :: [Type -> Type] -> (Type -> Type) -> Type -> Type
+type family ExpandPhases phases m where
+    ExpandPhases '[] m = Constructor DynamicEnv m
+    ExpandPhases (p ': ps) m  = p `Compose` ExpandPhases ps m
 
 type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
 type family HasAll rs m e where
