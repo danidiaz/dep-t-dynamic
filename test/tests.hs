@@ -168,10 +168,9 @@ parseConf = Kleisli parseJSON
 
 type Allocator = ContT () IO
 
-type Phases env_ m = Field `Compose` Configurator `Compose` Allocator `Compose` Constructor env_ m
+type Phases env = Field `Compose` Configurator `Compose` Allocator `Compose` Constructor env
 
-
-env :: DynamicEnv (Phases DynamicEnv IO) IO
+env :: DynamicEnv (Phases (DynamicEnv Identity IO)) IO
 env =
       insertDep (
         ("logger",()) `bindPhase` \() ->  
@@ -193,7 +192,7 @@ env =
       )
     $ mempty
 
-env' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor DynamicEnv IO) IO)
+env' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor (DynamicEnv Identity IO)) IO)
 env' = traverseH trans env
     where 
     trans (Compose (fieldName, Compose (Kleisli f))) =
@@ -215,7 +214,7 @@ testEnvConstruction = do
         assertEqual "" "foobar" $ result
 
 
-envMissing :: DynamicEnv (Phases DynamicEnv IO) IO
+envMissing :: DynamicEnv (Phases (DynamicEnv Identity IO)) IO
 envMissing =
       insertDep (
         ("repository",()) `bindPhase` \() ->  

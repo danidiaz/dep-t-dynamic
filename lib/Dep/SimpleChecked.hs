@@ -17,15 +17,15 @@ import GHC.TypeLits
 import Dep.Dynamic
 import Data.SOP qualified as SOP
 
-data CheckedEnv phases m = CheckedEnv (DynamicEnv (UnderConstruction phases m) m)
+data CheckedEnv phases m = CheckedEnv (DynamicEnv (UnderConstruction phases (DynamicEnv Identity m)) m)
 
-type UnderConstruction :: [Type -> Type] -> (Type -> Type) -> Type -> Type
-newtype UnderConstruction phases m x = UnderConstruction (ExpandPhases phases DynamicEnv m x)
+type UnderConstruction :: [Type -> Type] -> Type -> Type -> Type
+newtype UnderConstruction phases e x = UnderConstruction (ExpandPhases phases e x)
 
-type ExpandPhases :: [Type -> Type] -> ((Type -> Type) -> (Type -> Type) -> Type) -> (Type -> Type) -> Type -> Type
-type family ExpandPhases phases e_ m where
-    ExpandPhases '[] e_ m = Constructor e_ m
-    ExpandPhases (p ': ps) e_ m  = p `Compose` ExpandPhases ps e_ m
+type ExpandPhases :: [Type -> Type] -> Type -> Type -> Type
+type family ExpandPhases phases e where
+    ExpandPhases '[] e = Constructor e
+    ExpandPhases (p ': ps) e = p `Compose` ExpandPhases ps e
 
 type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
 type family HasAll rs m e where
@@ -42,8 +42,8 @@ type family MonadSatisfiesAll cs m where
     MonadSatisfiesAll '[] m = ()
     MonadSatisfiesAll (c : cs) m = (c m, MonadSatisfiesAll cs m)
 
-checkedDep :: forall rs mcs phases r_ m . UnderConstruction phases m (r_ m) -> CheckedEnv phases m -> CheckedEnv phases m
-checkedDep = undefined
+-- checkedDep :: forall rs mcs phases r_ m . (forall e_. UnderConstruction phases (e_ m) m (r_ m)) -> CheckedEnv phases m -> CheckedEnv phases m
+-- checkedDep = undefined
 
 
 
