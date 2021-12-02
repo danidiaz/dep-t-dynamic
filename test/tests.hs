@@ -231,7 +231,7 @@ envMissing =
     $ mempty
 
 
-envMissing' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor DynamicEnv IO) IO)
+envMissing' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor (DynamicEnv Identity IO)) IO)
 envMissing' = traverseH trans envMissing
     where 
     trans (Compose (fieldName, Compose (Kleisli f))) =
