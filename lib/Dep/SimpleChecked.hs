@@ -10,16 +10,20 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-module Dep.SimpleChecked (CheckedEnv) where
+module Dep.SimpleChecked  where
 
 import Data.Functor.Compose
 import Data.Kind
+import Data.SOP (K (..))
 import Data.SOP qualified as SOP
+import Data.SOP.NP 
 import Data.Typeable
 import Dep.Dynamic
 import Dep.Env
 import GHC.TypeLits
+import Data.Coerce
 
 data CheckedEnv phases m = CheckedEnv (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
@@ -53,7 +57,20 @@ checkedDep ::
   -- | stuff
   CheckedEnv phases m ->
   CheckedEnv phases m
-checkedDep f (CheckedEnv de) = CheckedEnv (insertDep (f @(DynamicEnv Identity m) @m) de)
+checkedDep f (CheckedEnv de) = 
+    let demote :: forall x . Typeable x => K TypeRep x
+        demote = K (typeRep (Proxy @x))
+        depReps = collapse_NP $ cpure_NP @Typeable @rs Proxy demote
+        monadConstraintReps = collapse_NP $ cpure_NP @Typeable @mcs Proxy demote
+     in CheckedEnv (insertDep (f @(DynamicEnv Identity m) @m) de)
+
+type Bare :: Type -> Type
+type family Bare x where
+    Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
+    Bare other = other
+
+fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
+fromBare = coerce
 
 -- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor) 
