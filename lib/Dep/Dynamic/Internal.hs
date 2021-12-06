@@ -49,7 +49,7 @@ import Type.Reflection qualified as R
 import Data.Hashable
 
 newtype DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
-  = DynamicEnv (HashMap SomeComponentRep Dynamic)
+  = DynamicEnv (HashMap SomeDepRep Dynamic)
 
 -- | In '(<>)', the entry for the left map is kept.
 deriving newtype instance Semigroup (DynamicEnv h m)
@@ -63,7 +63,7 @@ insertDep ::
   DynamicEnv h m ->
   DynamicEnv h m
 insertDep component (DynamicEnv dict) =
-  let key = SomeComponentRep (R.typeRep @r_)
+  let key = SomeDepRep (R.typeRep @r_)
    in DynamicEnv (H.insert key (toDyn component) dict)
 
 -- | The record type to delete is supplied through a type application.
@@ -73,14 +73,14 @@ deleteDep ::
   DynamicEnv h m ->
   DynamicEnv h m
 deleteDep (DynamicEnv dict) =
-  let key = SomeComponentRep (R.typeRep @r_)
+  let key = SomeDepRep (R.typeRep @r_)
    in DynamicEnv (H.delete key dict)
 
 -- | 'DynamicEnv' has a 'Data.Has.Has' instance for every possible component. If the
 -- component is not actually in the environment, 'DepNotFound' is thrown.
 instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
   dep (DynamicEnv dict) =
-    case H.lookup (SomeComponentRep (R.typeRep @r_)) dict of
+    case H.lookup (SomeDepRep (R.typeRep @r_)) dict of
       Nothing ->
         throw (DepNotFound (typeRep (Proxy @(r_ m))))
       Just (d :: Dynamic) ->
@@ -120,7 +120,7 @@ instance Phased DynamicEnv where
           Nothing -> error "Impossible failure converting dep."
           Just hcomponent -> toDyn <$> trans hcomponent
       dynTrans k d = case k of
-        SomeComponentRep tr -> 
+        SomeDepRep tr -> 
             R.withTypeable tr (withComponent tr d)
 
     liftA2H
@@ -149,19 +149,20 @@ instance Phased DynamicEnv where
           (_, Nothing) -> error "Impossible failure converting right dep."
           (Just acomponent, Just fcomponent) -> toDyn (trans acomponent fcomponent)
       dynTrans k dpair = case k of
-        SomeComponentRep tr -> 
+        SomeDepRep tr -> 
             R.withTypeable tr (withComponent tr dpair)
 
-data SomeComponentRep where
-    SomeComponentRep :: forall (a :: (Type -> Type) -> Type) . !(R.TypeRep a) -> SomeComponentRep
+data SomeDepRep where
+    SomeDepRep :: forall (a :: (Type -> Type) -> Type) . !(R.TypeRep a) -> SomeDepRep
 
-instance Eq SomeComponentRep where
-    SomeComponentRep r1 == SomeComponentRep r2 = 
-        case r1 `R.eqTypeRep` r2 of
-          Just _  -> True
-          Nothing -> False
+instance Eq SomeDepRep where
+    SomeDepRep r1 == SomeDepRep r2 = R.SomeTypeRep r1 == R.SomeTypeRep r2
 
-instance Hashable SomeComponentRep where
-    hashWithSalt salt (SomeComponentRep tr) = hashWithSalt salt tr
-    hash (SomeComponentRep tr) = hash tr 
+instance Ord SomeDepRep where
+    SomeDepRep r1 `compare` SomeDepRep r2 = R.SomeTypeRep r1 `compare` R.SomeTypeRep r2
+
+instance Hashable SomeDepRep where
+    hashWithSalt salt (SomeDepRep tr) = hashWithSalt salt tr
+    hash (SomeDepRep tr) = hash tr 
+
 
