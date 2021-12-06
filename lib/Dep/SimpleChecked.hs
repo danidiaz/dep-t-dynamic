@@ -30,6 +30,9 @@ import Dep.Dynamic.Internal
 import Dep.Env
 import GHC.TypeLits
 import Type.Reflection qualified as R
+import qualified Algebra.Graph
+import Algebra.Graph.AdjacencyMap (AdjacencyMap)
+import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 data CheckedEnv phases m = CheckedEnv (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
@@ -98,8 +101,11 @@ instance Hashable SomeMonadConstraintRep where
 
 data Deps = Deps
   { provided :: HashSet SomeDepRep,
-    required :: HashSet SomeDepRep
+    required :: HashSet SomeDepRep,
+    depGraph :: AdjacencyMap SomeDepRep
   }
+
+data RequiredMonadConstraints = RequiredMonadConstraints (Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep)
 
 -- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor)
