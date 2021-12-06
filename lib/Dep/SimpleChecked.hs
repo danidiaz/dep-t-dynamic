@@ -29,11 +29,10 @@ import Dep.Dynamic.Internal
 import Dep.Env
 import GHC.TypeLits
 import Type.Reflection qualified as R
-import qualified Algebra.Graph
-import Algebra.Graph.AdjacencyMap (AdjacencyMap)
+import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
-data CheckedEnv phases m = CheckedEnv (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
 type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
 type family HasAll rs m e where
@@ -65,14 +64,14 @@ checkedDep ::
   -- | stuff
   CheckedEnv phases m ->
   CheckedEnv phases m
-checkedDep f (CheckedEnv de) =
+checkedDep f (CheckedEnv _ de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (SomeDepRep (R.typeRep @x))
       depReps = collapse_NP $ cpure_NP @R.Typeable @rs Proxy demoteDep
       demoteMonadCapability :: forall (x :: (Type -> Type) -> Constraint). R.Typeable x => K SomeMonadConstraintRep x
       demoteMonadCapability = K (SomeMonadConstraintRep (R.typeRep @x))
       monadCapabilityReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadCapability
-   in CheckedEnv (insertDep (f @(DynamicEnv Identity m) @m) de)
+   in CheckedEnv undefined (insertDep (f @(DynamicEnv Identity m) @m) de)
 
 
 data SomeMonadConstraintRep where
@@ -88,13 +87,15 @@ instance Hashable SomeMonadConstraintRep where
   hashWithSalt salt (SomeMonadConstraintRep tr) = hashWithSalt salt tr
   hash (SomeMonadConstraintRep tr) = hash tr
 
-data Deps = Deps
+data DepGraph = DepGraph
   { provided :: HashSet SomeDepRep,
     required :: HashSet SomeDepRep,
-    depGraph :: AdjacencyMap SomeDepRep
+    depToDep :: Graph SomeDepRep, 
+    depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep
   }
 
-data RequiredMonadConstraints = RequiredMonadConstraints (Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep)
+emptyCheckedEnv :: forall phases m . CheckedEnv phases m
+emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
 
 -- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor)
