@@ -15,7 +15,6 @@
 
 module Dep.SimpleChecked where
 
-import Data.Coerce
 import Data.Functor.Compose
 import Data.HashSet (HashSet)
 import Data.HashSet qualified as HashSet
@@ -75,16 +74,6 @@ checkedDep f (CheckedEnv de) =
       monadCapabilityReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadCapability
    in CheckedEnv (insertDep (f @(DynamicEnv Identity m) @m) de)
 
-type Bare :: Type -> Type
-type family Bare x where
-  Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
-  Bare other = other
-
-toBare :: Coercible phases (Bare phases) => phases -> Bare phases
-toBare = coerce
-
-fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
-fromBare = coerce
 
 data SomeMonadConstraintRep where
   SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep

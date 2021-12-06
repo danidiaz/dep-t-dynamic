@@ -165,4 +165,13 @@ instance Hashable SomeDepRep where
     hashWithSalt salt (SomeDepRep tr) = hashWithSalt salt tr
     hash (SomeDepRep tr) = hash tr 
 
+type Bare :: Type -> Type
+type family Bare x where
+  Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
+  Bare other = other
 
+toBare :: Coercible phases (Bare phases) => phases -> Bare phases
+toBare = coerce
+
+fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
+fromBare = coerce
