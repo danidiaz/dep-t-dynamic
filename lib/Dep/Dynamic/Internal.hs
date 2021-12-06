@@ -175,3 +175,8 @@ toBare = coerce
 
 fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
 fromBare = coerce
+
+depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
+depRep = SomeDepRep (R.typeRep @r_)
+
+

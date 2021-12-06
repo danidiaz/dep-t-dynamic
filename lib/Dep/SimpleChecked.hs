@@ -12,6 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Dep.SimpleChecked where
 
@@ -64,15 +65,22 @@ checkedDep ::
   -- | stuff
   CheckedEnv phases m ->
   CheckedEnv phases m
-checkedDep f (CheckedEnv _ de) =
+checkedDep f (CheckedEnv (DepGraph {provided,required,depToDep,depToMonad}) de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
-      demoteDep = K (SomeDepRep (R.typeRep @x))
+      demoteDep = K (depRep @x)
       depReps = collapse_NP $ cpure_NP @R.Typeable @rs Proxy demoteDep
-      demoteMonadCapability :: forall (x :: (Type -> Type) -> Constraint). R.Typeable x => K SomeMonadConstraintRep x
-      demoteMonadCapability = K (SomeMonadConstraintRep (R.typeRep @x))
-      monadCapabilityReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadCapability
-   in CheckedEnv undefined (insertDep (f @(DynamicEnv Identity m) @m) de)
-
+      demoteMonadConstraint :: forall (x :: (Type -> Type) -> Constraint). R.Typeable x => K SomeMonadConstraintRep x
+      demoteMonadConstraint = K (SomeMonadConstraintRep (R.typeRep @x))
+      monadConstraintReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadConstraint
+      provided' = HashSet.insert (depRep @r_) provided 
+      required' = foldr HashSet.insert required depReps
+      depGraph' = DepGraph {
+            provided = provided'
+        ,   required = required'
+        ,   depToDep = undefined
+        ,   depToMonad = undefined
+        }
+   in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
 
 data SomeMonadConstraintRep where
   SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
@@ -96,6 +104,9 @@ data DepGraph = DepGraph
 
 emptyCheckedEnv :: forall phases m . CheckedEnv phases m
 emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
+
+monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
+monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
 
 -- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor)
