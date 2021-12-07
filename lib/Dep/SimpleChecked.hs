@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TupleSections #-}
 
 module Dep.SimpleChecked where
 
@@ -65,7 +66,7 @@ checkedDep ::
   -- | stuff
   CheckedEnv phases m ->
   CheckedEnv phases m
-checkedDep f (CheckedEnv (DepGraph {provided,required,depToDep,depToMonad}) de) =
+checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
       depReps = collapse_NP $ cpure_NP @R.Typeable @rs Proxy demoteDep
@@ -77,8 +78,8 @@ checkedDep f (CheckedEnv (DepGraph {provided,required,depToDep,depToMonad}) de) 
       depGraph' = DepGraph {
             provided = provided'
         ,   required = required'
-        ,   depToDep = undefined
-        ,   depToMonad = undefined
+        ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
+        ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
         }
    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
 
@@ -95,6 +96,9 @@ instance Hashable SomeMonadConstraintRep where
   hashWithSalt salt (SomeMonadConstraintRep tr) = hashWithSalt salt tr
   hash (SomeMonadConstraintRep tr) = hash tr
 
+instance Show SomeMonadConstraintRep where
+    show (SomeMonadConstraintRep r1) = show r1
+
 data DepGraph = DepGraph
   { provided :: HashSet SomeDepRep,
     required :: HashSet SomeDepRep,
@@ -107,6 +111,16 @@ emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) memp
 
 monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
 monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
+
+unchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+unchecked (CheckedEnv g d) = (g, d)
+
+checkEnv :: CheckedEnv phases m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
+  let missing = HashSet.difference required provided 
+   in if HashSet.null missing
+      then Right (g, d)
+      else Left missing
 
 -- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor)

@@ -165,6 +165,9 @@ instance Hashable SomeDepRep where
     hashWithSalt salt (SomeDepRep tr) = hashWithSalt salt tr
     hash (SomeDepRep tr) = hash tr 
 
+instance Show SomeDepRep where
+    show (SomeDepRep r1) = show r1
+
 type Bare :: Type -> Type
 type family Bare x where
   Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
