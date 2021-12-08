@@ -15,6 +15,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Dep.Checked where
 
@@ -39,45 +40,44 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 data CheckedEnv phases re_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT (re_ (DynamicEnv Identity)) m))
 
--- data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+checkedDep ::
+  forall rs mcs r_ phases re_ m.
+  ( SOP.All R.Typeable rs,
+    SOP.All R.Typeable mcs,
+    R.Typeable r_,
+    R.Typeable re_,
+    R.Typeable m,
+    R.Typeable phases,
+    HasAll rs m (re_ (DynamicEnv Identity) (DepT (re_ (DynamicEnv Identity)) m)),
+    MonadSatisfiesAll mcs (DepT (re_ (DynamicEnv Identity)) m)
+  ) =>
+  -- | stuff
+  ( forall e_ n.
+    ( HasAll rs n (e_ (DepT e_ n)),
+      MonadSatisfiesAll mcs (DepT e_ n)
+    ) =>
+    phases (r_ (DepT e_ n))
+  ) ->
+  -- | stuff
+  CheckedEnv phases re_ m ->
+  CheckedEnv phases re_ m
+checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
+  let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
+      demoteDep = K (depRep @x)
+      depReps = collapse_NP $ cpure_NP @R.Typeable @rs Proxy demoteDep
+      demoteMonadConstraint :: forall (x :: (Type -> Type) -> Constraint). R.Typeable x => K SomeMonadConstraintRep x
+      demoteMonadConstraint = K (SomeMonadConstraintRep (R.typeRep @x))
+      monadConstraintReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadConstraint
+      provided' = HashSet.insert (depRep @r_) provided 
+      required' = foldr HashSet.insert required depReps
+      depGraph' = DepGraph {
+            provided = provided'
+        ,   required = required'
+        ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
+        ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
+        }
+   in CheckedEnv depGraph' (insertDep (f @(re_ (DynamicEnv Identity))) de)
 
--- checkedDep ::
---   forall rs mcs r_ m phases.
---   ( SOP.All R.Typeable rs,
---     SOP.All R.Typeable mcs,
---     R.Typeable r_,
---     R.Typeable m,
---     R.Typeable phases,
---     HasAll rs m (DynamicEnv Identity m),
---     MonadSatisfiesAll mcs m
---   ) =>
---   -- | stuff
---   ( forall e n.
---     ( HasAll rs n e,
---       MonadSatisfiesAll mcs n
---     ) =>
---     (phases `Compose` Constructor e) (r_ n)
---   ) ->
---   -- | stuff
---   CheckedEnv phases m ->
---   CheckedEnv phases m
--- checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
---   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
---       demoteDep = K (depRep @x)
---       depReps = collapse_NP $ cpure_NP @R.Typeable @rs Proxy demoteDep
---       demoteMonadConstraint :: forall (x :: (Type -> Type) -> Constraint). R.Typeable x => K SomeMonadConstraintRep x
---       demoteMonadConstraint = K (SomeMonadConstraintRep (R.typeRep @x))
---       monadConstraintReps = collapse_NP $ cpure_NP @R.Typeable @mcs Proxy demoteMonadConstraint
---       provided' = HashSet.insert (depRep @r_) provided 
---       required' = foldr HashSet.insert required depReps
---       depGraph' = DepGraph {
---             provided = provided'
---         ,   required = required'
---         ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
---         ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
---         }
---    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
--- 
 -- 
 -- terminalDep ::
 --   forall mcs r_ m phases.

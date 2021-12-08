@@ -39,12 +39,12 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
 checkedDep ::
-  forall rs mcs r_ m phases.
+  forall rs mcs r_ phases m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
-    R.Typeable m,
     R.Typeable phases,
+    R.Typeable m,
     HasAll rs m (DynamicEnv Identity m),
     MonadSatisfiesAll mcs m
   ) =>
@@ -77,7 +77,7 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
 
 
 terminalDep ::
-  forall mcs r_ m phases.
+  forall mcs r_ phases m. 
   ( SOP.All R.Typeable mcs,
     R.Typeable r_,
     R.Typeable m,
@@ -95,7 +95,7 @@ terminalDep ::
   -- | stuff
   CheckedEnv phases m ->
   CheckedEnv phases m
-terminalDep f = checkedDep @'[] @mcs @r_ @m @phases (Compose (f <&> \c -> constructor (const c)))
+terminalDep f = checkedDep @'[] @mcs @r_ @phases @m (Compose (f <&> \c -> constructor (const c)))
 
 emptyCheckedEnv :: forall phases m . CheckedEnv phases m
 emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
