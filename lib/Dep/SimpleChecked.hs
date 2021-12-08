@@ -14,6 +14,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Dep.SimpleChecked where
 
@@ -31,6 +32,7 @@ import Dep.Dynamic.Internal
 import Dep.Env
 import GHC.TypeLits
 import Type.Reflection qualified as R
+import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
@@ -83,6 +85,28 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         }
    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
 
+
+terminalDep ::
+  forall mcs r_ m phases.
+  ( SOP.All R.Typeable mcs,
+    R.Typeable r_,
+    R.Typeable m,
+    R.Typeable phases,
+    Functor phases,
+    MonadSatisfiesAll mcs m
+  ) =>
+  -- | stuff
+  ( forall n.
+    ( 
+      MonadSatisfiesAll mcs n
+    ) =>
+    phases (r_ n)
+  ) ->
+  -- | stuff
+  CheckedEnv phases m ->
+  CheckedEnv phases m
+terminalDep f = checkedDep @'[] @mcs @r_ @m @phases (Compose (f <&> \c -> constructor (const c)))
+
 data SomeMonadConstraintRep where
   SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
 
@@ -122,6 +146,5 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
       then Right (g, d)
       else Left missing
 
--- depless/terminal dep (no constructor)
 -- phaselessDep (no phases, only the constructor)
 --
