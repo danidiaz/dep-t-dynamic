@@ -94,7 +94,7 @@ instance (Typeable r_, Typeable m) => Has r_ m (DynamicEnv Identity m) where
 
 -- | Exception thrown by 'dep' when the component we are looking for is not
 -- present in the environment.
-data DepNotFound = DepNotFound TypeRep deriving (Show)
+newtype DepNotFound = DepNotFound TypeRep deriving (Show)
 
 instance Exception DepNotFound
 
@@ -172,6 +172,9 @@ instance Hashable SomeDepRep where
 instance Show SomeDepRep where
     show (SomeDepRep r1) = show r1
 
+depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
+depRep = SomeDepRep (R.typeRep @r_)
+
 data SomeMonadConstraintRep where
   SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
 
@@ -188,6 +191,9 @@ instance Hashable SomeMonadConstraintRep where
 instance Show SomeMonadConstraintRep where
     show (SomeMonadConstraintRep r1) = show r1
 
+monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
+monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
+
 type Bare :: Type -> Type
 type family Bare x where
   Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
@@ -198,9 +204,6 @@ toBare = coerce
 
 fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
 fromBare = coerce
-
-depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
-depRep = SomeDepRep (R.typeRep @r_)
 
 type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
 type family HasAll rs m e where

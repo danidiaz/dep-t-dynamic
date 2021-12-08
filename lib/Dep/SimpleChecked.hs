@@ -76,32 +76,29 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
 
 
-terminalDep ::
-  forall mcs r_ phases m. 
-  ( SOP.All R.Typeable mcs,
-    R.Typeable r_,
-    R.Typeable m,
-    R.Typeable phases,
-    Functor phases,
-    MonadSatisfiesAll mcs m
-  ) =>
-  -- | stuff
-  ( forall n.
-    ( 
-      MonadSatisfiesAll mcs n
-    ) =>
-    phases (r_ n)
-  ) ->
-  -- | stuff
-  CheckedEnv phases m ->
-  CheckedEnv phases m
-terminalDep f = checkedDep @'[] @mcs @r_ @phases @m (Compose (f <&> \c -> constructor (const c)))
+-- terminalDep ::
+--   forall mcs r_ phases m. 
+--   ( SOP.All R.Typeable mcs,
+--     R.Typeable r_,
+--     R.Typeable m,
+--     R.Typeable phases,
+--     Functor phases,
+--     MonadSatisfiesAll mcs m
+--   ) =>
+--   -- | stuff
+--   ( forall n.
+--     ( 
+--       MonadSatisfiesAll mcs n
+--     ) =>
+--     phases (r_ n)
+--   ) ->
+--   -- | stuff
+--   CheckedEnv phases m ->
+--   CheckedEnv phases m
+-- terminalDep f = checkedDep @'[] @mcs @r_ @phases @m (Compose (f <&> \c -> constructor (const c)))
 
 emptyCheckedEnv :: forall phases m . CheckedEnv phases m
 emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
-
-monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
-monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
 
 unchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 unchecked (CheckedEnv g d) = (g, d)
