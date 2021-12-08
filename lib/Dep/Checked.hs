@@ -15,7 +15,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Dep.Checked where
 
@@ -31,6 +32,7 @@ import Data.SOP qualified as SOP
 import Data.SOP.NP
 import Dep.Dynamic
 import Dep.Dynamic.Internal
+import Dep.Has
 import Dep.Env
 import GHC.TypeLits
 import Type.Reflection qualified as R
@@ -38,29 +40,37 @@ import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
-data CheckedEnv phases re_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT (re_ (DynamicEnv Identity)) m))
+data CallEnv i e_ m = CallEnv
+  { _callInfo :: i,
+    _ops :: e_ m
+  }
+-- Delegate all 'Has' queries to the inner environment.
+instance Has r_ m (e_ m) => Has r_ m (CallEnv i e_ m) where
+  dep = dep . _ops
+
+data CheckedEnv phases ci m = CheckedEnv DepGraph (DynamicEnv phases (DepT (CallEnv ci (DynamicEnv Identity)) m))
 
 checkedDep ::
-  forall rs mcs r_ phases re_ m.
+  forall rs mcs r_ phases ci m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
-    R.Typeable re_,
+    R.Typeable ci,
     R.Typeable m,
     R.Typeable phases,
-    HasAll rs m (re_ (DynamicEnv Identity) (DepT (re_ (DynamicEnv Identity)) m)),
-    MonadSatisfiesAll mcs (DepT (re_ (DynamicEnv Identity)) m)
+    HasAll rs (DepT (CallEnv ci (DynamicEnv Identity)) m) (CallEnv ci (DynamicEnv Identity) (DepT (CallEnv ci (DynamicEnv Identity)) m)),
+    MonadSatisfiesAll mcs (DepT (CallEnv ci (DynamicEnv Identity)) m)
   ) =>
   -- | stuff
   ( forall e_ n.
-    ( HasAll rs n (e_ (DepT e_ n)),
+    ( HasAll rs (DepT e_ n) (e_ (DepT e_ n)),
       MonadSatisfiesAll mcs (DepT e_ n)
     ) =>
     phases (r_ (DepT e_ n))
   ) ->
   -- | stuff
-  CheckedEnv phases re_ m ->
-  CheckedEnv phases re_ m
+  CheckedEnv phases ci m ->
+  CheckedEnv phases ci m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
@@ -76,7 +86,8 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
         ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
         }
-   in CheckedEnv depGraph' (insertDep (f @(re_ (DynamicEnv Identity))) de)
+   in CheckedEnv depGraph' (insertDep (f @(CallEnv ci (DynamicEnv Identity))) de)
+
 
 -- 
 -- terminalDep ::
