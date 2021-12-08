@@ -32,6 +32,8 @@ import Data.Coerce
 import Data.Dynamic
 import Data.Function (fix)
 import Data.Functor (($>), (<&>))
+import Data.HashSet (HashSet)
+import Data.HashSet qualified as HashSet
 import Data.Functor.Compose
 import Data.Functor.Constant
 import Data.Functor.Identity
@@ -47,6 +49,8 @@ import GHC.Records
 import GHC.TypeLits
 import Type.Reflection qualified as R
 import Data.Hashable
+import Algebra.Graph 
+import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 newtype DynamicEnv (h :: Type -> Type) (m :: Type -> Type)
   = DynamicEnv (HashMap SomeDepRep Dynamic)
@@ -168,6 +172,22 @@ instance Hashable SomeDepRep where
 instance Show SomeDepRep where
     show (SomeDepRep r1) = show r1
 
+data SomeMonadConstraintRep where
+  SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
+
+instance Eq SomeMonadConstraintRep where
+    SomeMonadConstraintRep r1 == SomeMonadConstraintRep r2 = R.SomeTypeRep r1 == R.SomeTypeRep r2
+
+instance Ord SomeMonadConstraintRep where
+    SomeMonadConstraintRep r1 `compare` SomeMonadConstraintRep r2 = R.SomeTypeRep r1 `compare` R.SomeTypeRep r2
+
+instance Hashable SomeMonadConstraintRep where
+  hashWithSalt salt (SomeMonadConstraintRep tr) = hashWithSalt salt tr
+  hash (SomeMonadConstraintRep tr) = hash tr
+
+instance Show SomeMonadConstraintRep where
+    show (SomeMonadConstraintRep r1) = show r1
+
 type Bare :: Type -> Type
 type family Bare x where
   Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
@@ -182,4 +202,19 @@ fromBare = coerce
 depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
 depRep = SomeDepRep (R.typeRep @r_)
 
+type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
+type family HasAll rs m e where
+  HasAll '[] m e = ()
+  HasAll (r_ : rs) m e = (Has r_ m e, HasAll rs m e)
 
+type MonadSatisfiesAll :: [(Type -> Type) -> Constraint] -> (Type -> Type) -> Constraint
+type family MonadSatisfiesAll cs m where
+  MonadSatisfiesAll '[] m = ()
+  MonadSatisfiesAll (c : cs) m = (c m, MonadSatisfiesAll cs m)
+
+data DepGraph = DepGraph
+  { provided :: HashSet SomeDepRep,
+    required :: HashSet SomeDepRep,
+    depToDep :: Graph SomeDepRep, 
+    depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep
+  }

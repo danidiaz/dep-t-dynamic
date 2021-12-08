@@ -38,16 +38,6 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
-type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
-type family HasAll rs m e where
-  HasAll '[] m e = ()
-  HasAll (r_ : rs) m e = (Has r_ m e, HasAll rs m e)
-
-type MonadSatisfiesAll :: [(Type -> Type) -> Constraint] -> (Type -> Type) -> Constraint
-type family MonadSatisfiesAll cs m where
-  MonadSatisfiesAll '[] m = ()
-  MonadSatisfiesAll (c : cs) m = (c m, MonadSatisfiesAll cs m)
-
 checkedDep ::
   forall rs mcs r_ m phases.
   ( SOP.All R.Typeable rs,
@@ -106,29 +96,6 @@ terminalDep ::
   CheckedEnv phases m ->
   CheckedEnv phases m
 terminalDep f = checkedDep @'[] @mcs @r_ @m @phases (Compose (f <&> \c -> constructor (const c)))
-
-data SomeMonadConstraintRep where
-  SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
-
-instance Eq SomeMonadConstraintRep where
-    SomeMonadConstraintRep r1 == SomeMonadConstraintRep r2 = R.SomeTypeRep r1 == R.SomeTypeRep r2
-
-instance Ord SomeMonadConstraintRep where
-    SomeMonadConstraintRep r1 `compare` SomeMonadConstraintRep r2 = R.SomeTypeRep r1 `compare` R.SomeTypeRep r2
-
-instance Hashable SomeMonadConstraintRep where
-  hashWithSalt salt (SomeMonadConstraintRep tr) = hashWithSalt salt tr
-  hash (SomeMonadConstraintRep tr) = hash tr
-
-instance Show SomeMonadConstraintRep where
-    show (SomeMonadConstraintRep r1) = show r1
-
-data DepGraph = DepGraph
-  { provided :: HashSet SomeDepRep,
-    required :: HashSet SomeDepRep,
-    depToDep :: Graph SomeDepRep, 
-    depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep
-  }
 
 emptyCheckedEnv :: forall phases m . CheckedEnv phases m
 emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
