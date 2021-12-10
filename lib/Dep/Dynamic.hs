@@ -2,7 +2,7 @@
 -- environment.
 --
 -- You don't need to declare beforehand what fields exist in the environment,
--- you can simply add the components directly.
+-- you can simply add them using 'insertDep'.
 --
 -- I might be useful for quick prototyping, or for when there is a big number
 -- of components and putting all of them in a conventional record would slow
@@ -13,7 +13,7 @@
 --
 -- It's not checked at compilation time that the dependencies for all
 -- components in the environment are also present in the environment. A
--- `DynamicEnv` exception will be thrown at run time when a component tries to
+-- `DynamicEnv` exception will be thrown at run time whenever a component tries to
 -- find a dependency that doesn't exist.
 module Dep.Dynamic
   (
@@ -22,6 +22,12 @@ module Dep.Dynamic
   , insertDep
   , deleteDep
   , DepNotFound (..)
+  , SomeDepRep (..)
+  , depRep
+  -- * Helpers for defining phases
+  , Bare
+  , fromBare
+  , toBare
   -- * Re-exports
   , mempty
   )
