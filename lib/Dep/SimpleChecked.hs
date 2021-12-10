@@ -27,6 +27,7 @@ import Data.Proxy
 import Data.SOP (K (..))
 import Data.SOP qualified as SOP
 import Data.SOP.NP
+import Dep.Has
 import Dep.Dynamic
 import Dep.Dynamic.Internal
 import Dep.Env

@@ -205,11 +205,6 @@ toBare = coerce
 fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
 fromBare = coerce
 
-type HasAll :: [(Type -> Type) -> Type] -> (Type -> Type) -> Type -> Constraint
-type family HasAll rs m e where
-  HasAll '[] m e = ()
-  HasAll (r_ : rs) m e = (Has r_ m e, HasAll rs m e)
-
 type MonadSatisfiesAll :: [(Type -> Type) -> Constraint] -> (Type -> Type) -> Constraint
 type family MonadSatisfiesAll cs m where
   MonadSatisfiesAll '[] m = ()
