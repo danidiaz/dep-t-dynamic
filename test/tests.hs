@@ -172,24 +172,21 @@ type Phases env = Field `Compose` Configurator `Compose` Allocator `Compose` Con
 
 env :: DynamicEnv (Phases (DynamicEnv Identity IO)) IO
 env =
-      insertDep (
-        ("logger",()) `bindPhase` \() ->  
-        parseConf `bindPhase` \(LoggerConfiguration {messagePrefix}) -> 
-        skipPhase @Allocator $
-        constructor (makeStdoutLogger messagePrefix)
-      )
-    $ insertDep (
-        ("repository",()) `bindPhase` \() ->  
-        skipPhase @Configurator $
-        allocateMap `bindPhase` \ref -> 
-        constructor (makeInMemoryRepository ref)
-      )
-    $ insertDep (
-        ("controller",()) `bindPhase` \() ->  
-        skipPhase @Configurator $
-        skipPhase @Allocator $ 
-        constructor makeController
-      )
+      insertDep @Logger (fromBare $
+        ("logger",) $
+        parseConf <&> \(LoggerConfiguration {messagePrefix}) -> 
+        pure @Allocator $
+        makeStdoutLogger messagePrefix)
+    $ insertDep @Repository (fromBare $ 
+        ("repository",) $
+        pure @Configurator $
+        allocateMap <&> \ref -> 
+        makeInMemoryRepository ref)
+    $ insertDep @Controller (fromBare $ 
+        ("controller",) $ 
+        pure @Configurator $
+        pure @Allocator $ 
+        makeController)
     $ mempty
 
 env' :: Kleisli Parser Object (DynamicEnv (Allocator `Compose` Constructor (DynamicEnv Identity IO)) IO)
