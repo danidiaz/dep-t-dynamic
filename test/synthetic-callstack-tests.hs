@@ -66,8 +66,8 @@ import Dep.Env
     skipPhase,
   )
 import Dep.Has
-import Dep.Has
   ( Has (dep),
+    HasAll,
     asCall,
   )
 import Dep.SimpleAdvice
@@ -193,36 +193,16 @@ makeController2Loggers (asCall -> call) =
 -- Identity, the environment is ready for use. (This is an example of the
 -- "Higer-Kinded Data" pattern.)
 
-data Env h m = Env
-  { logger :: h (Logger m),
-    logger2 :: h (Tagged "secondary" Logger m),
-    repository :: h (Repository m),
-    controller :: h (Controller m)
-  }
-  deriving stock (Generic)
-  deriving anyclass (Phased, DemotableFieldNames, FieldsFindableByType)
-
--- Locate the components by their types. We could also define the required Has
--- instance for each component manually, but that's tedious.
-deriving via Autowired (Env Identity m) instance Autowireable r_ m (Env Identity m) => Has r_ m (Env Identity m)
-
 -- The "phases" that components go through until fully built. Each phase
 -- is represented as an applicative functor. The succession of phases is
 -- defined using Data.Functor.Compose.
 --
+type Phases = Allocator
 
 -- A phase in which we might allocate some resource needed by the component,
 -- also set some bracket-like resource management.
 -- The "managed" library could be used instead of ContT.
 type Allocator = ContT () IO
-
--- First we allocate any needed resource, then we have a construction phase
--- during which the component reads its own dependencies from a "completed"
--- environment.
---
--- There could be more phases, like for example an initial "read configuration"
--- phase.
-type Phases = Allocator
 
 -- Environment value
 --
