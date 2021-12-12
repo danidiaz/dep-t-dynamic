@@ -21,6 +21,32 @@ Usually environments will be vanilla Haskell records. It has the advantage that 
 - For environments with a big number of components, compiling the environment type might be slow.
 - Defining the required `Has` instances for the environment might be a chore, even with the helpers from [`Dep.Env`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Env.html#g:2).  
 
+### How `Dep.Dynamic` helps
+
+`DynamicEnv` from `Dep.Dynamic` allows registering any component at runtime.
+Because there aren't static fields to check, compilation is faster.
+
+`DynamicEnv` also has a [`Has`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Has.html#t:Has) instance for *any* component! However, if the component hasn't been previously registered, [`dep`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Has.html#v:dep) will throw an exception.
+
+
+### Isn't that a wee bit too unsafe?
+
+Yeah, pretty much. It means that you can forget to add some seldomly-used
+dependency and then have an exception pop up at an inconvenient time when that
+dependency is first exercised.
+
+That's where `Dep.Checked` and `Dep.SimpleChecked` may help.
+
+### How can the `-Checked` modules help?
+
+They define wrappers around `DynamicEnv` that require you to list each component's dependencies as you add them to the environment. Then, before putting the environment to use, they let you check at runtime that the dependencies for all components are present in the environment.
+
+It's more verbose and explicit, but safer. It makes easy to check in a unit test that the environment has been set up correctly.
+
+As a side benefit, the `-Checked` modules give you the graph of dependencies as a value that you can analyze and [export](https://hackage.haskell.org/package/algebraic-graphs-0.5/docs/Algebra-Graph-Export-Dot.html) as a [DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)) file.
+
+`Dep.Checked` can only be used when your dependencies live in the `DepT` monad. Use `Dep.SimpleChecked` otherwise.
+
 ## Relationship with the "registry" package
 
 This library is heavily inspired in the [registry](https://hackage.haskell.org/package/registry) package, which provides a `Typeable`-based method for performing dependency injection.
