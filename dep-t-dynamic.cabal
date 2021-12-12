@@ -3,8 +3,19 @@ cabal-version:       3.0
 name:                dep-t-dynamic
 version:             0.1.0.0
 synopsis:            A dynamic environment for dependency injection.
-description:         A dynamic environment for dependency injection.
+description:         This library is a companion to "dep-t". It provides "environments"
+                     into which you 
+                     can register record values parameterized by a monad.
                      
+                     The environments are dynamically typed in the sense that
+                     the types of the contained records
+                     are not reflected in
+                     the type of the environment, and in that 
+                     searching for a
+                     component record might fail at runtime if the record
+                     hasn't been previously inserted.
+
+                     The main purpose of the library is to support dependency injection.
 -- bug-reports:
 license:             BSD-3-Clause
 license-file:        LICENSE
