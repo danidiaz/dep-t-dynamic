@@ -101,7 +101,7 @@ newtype DepNotFound = DepNotFound TypeRep deriving (Show)
 instance Exception DepNotFound
 
 -- | In 'liftH2', mismatches in key sets are resolved by working with their
--- intersection, like the @Apply@ instance for @Data.Map@ in the
+-- intersection, like how the @Apply@ instance for @Data.Map@ in the
 -- \"semigroupoids\" package works.
 instance Phased DynamicEnv where
     traverseH 
