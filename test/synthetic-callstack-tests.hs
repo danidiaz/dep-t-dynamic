@@ -324,34 +324,42 @@ instance HasSyntheticCallStack (CallEnv SyntheticCallStack e_ m) where
 --
 -- But now it also includes the dependency injection context with all the
 -- components.
-env' :: Env Phases' (DepT (CallEnv SyntheticCallStack (Env Identity)) IO)
+env' :: C.CheckedEnv Phases' (CallEnv SyntheticCallStack (DynamicEnv Identity)) IO
+-- env' :: Env Phases' (DepT (CallEnv SyntheticCallStack (Env Identity)) IO)
 env' =
-  Env
-    { logger =
-        allocateBombs 1 `bindPhase` \bombs ->
-          Identity $ A.component \_ ->
-            makeStdoutLogger
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method <> A.injectFailures bombs,
-      logger2 =
-        allocateBombs 0 `bindPhase` \bombs ->
-          Identity $ A.component \_ ->
-            tagged @"secondary" makeStdoutLogger
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method <> A.injectFailures bombs,
-      repository =
-        allocateSet `bindPhase` \ref ->
-          Identity $ A.component \env ->
-            makeInMemoryRepository ref env
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method,
-      controller =
-        skipPhase @Allocator $
-          Identity $ A.component \env ->
-            makeController env
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method
-    }
+  C.checkedDep @Logger @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+    ( fromBare $
+        allocateBombs 1 <&> \bombs ->
+          A.component \_ ->
+              A.adviseRecord @Top @Top (\method ->
+                A.keepCallStack ioEx method <> A.injectFailures bombs)
+              makeStdoutLogger
+    )
+    . C.checkedDep @(Tagged "secondary" Logger) @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateBombs 0 <&> \bombs ->
+            A.component \_ ->
+                A.adviseRecord @Top @Top (\method ->
+                  A.keepCallStack ioEx method <> A.injectFailures bombs)
+                (tagged @"secondary" makeStdoutLogger)
+      )
+    . C.checkedDep @Repository @'[Logger] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateSet <&> \ref ->
+            A.component \env ->
+                A.adviseRecord @Top @Top (\method ->
+                  A.keepCallStack ioEx method)
+                (makeInMemoryRepository ref env)
+      )
+    . C.checkedDep @Controller @'[Logger, Repository] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          pure @Allocator $
+            A.component \env ->
+              A.adviseRecord @Top @Top (\method ->
+                A.keepCallStack ioEx method)
+              (makeController env)
+      )
+  $ mempty
 
 -- THE COMPOSITION ROOT - YET ANOTER APPROACH
 --
@@ -494,8 +502,9 @@ testSyntheticCallStackTagged = do
 -- Test the "DepT"-based version of the environment.
 testSyntheticCallStack' :: Assertion
 testSyntheticCallStack' = do
-  let action =
-        runContT (pullPhase @Allocator env') \runnable -> do
+  let Right (_, denv) = C.checkEnv env'
+      action =
+        runContT (pullPhase @Allocator denv) \runnable -> do
           _ <- A.runFromDep (pure (CallEnv [] runnable)) route 1 2
           pure ()
   me <- try @SyntheticStackTraceException action
@@ -506,17 +515,21 @@ testSyntheticCallStack' = do
 
 testSyntheticCallStackTagged' :: Assertion
 testSyntheticCallStackTagged' = do
-  let envz =
-        env'
-          { controller =
-              skipPhase @Allocator $
-                Identity $ A.component \env ->
-                  makeController2Loggers env
-                    & A.adviseRecord @Top @Top \method ->
-                      A.keepCallStack ioEx method
-          }
+  let Right (_, denv) = C.checkEnv env'
+      denv' =
+        insertDep @Controller
+          ( fromBare $
+              pure @Allocator $
+                A.component \env ->
+                  advising
+                    ( adviseRecord @Top @Top \method ->
+                        keepCallStack ioEx method
+                    )
+                    (makeController2Loggers env)
+          )
+          denv
       action =
-        runContT (pullPhase @Allocator envz) \runnable -> do
+        runContT (pullPhase @Allocator denv') \runnable -> do
           _ <- A.runFromDep (pure (CallEnv [] runnable)) route 1 2
           pure ()
   me <- try @SyntheticStackTraceException action

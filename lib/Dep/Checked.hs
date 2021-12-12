@@ -62,11 +62,13 @@ checkedDep ::
     R.Typeable m,
     HasAll rs (DepT rune_ m) (rune_ (DepT rune_ m)),
     forall s_ z n. Has s_ n (DynamicEnv Identity n) => Has s_ n (rune_ n),
+    Monad m,
     MonadSatisfiesAll mcs (DepT rune_ m)
   ) =>
   -- | stuff
   ( forall e_ n.
     ( HasAll rs (DepT e_ n) (e_ (DepT e_ n)),
+      Monad n, 
       MonadSatisfiesAll mcs (DepT e_ n)
     ) =>
     phases (r_ (DepT e_ n))
