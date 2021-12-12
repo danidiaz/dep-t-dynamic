@@ -11,7 +11,7 @@ This library is a compation to [dep-t](https://hackage.haskell.org/package/dep-t
 
 In [dep-t](https://hackage.haskell.org/package/dep-t), functions list their dependences on "injectable" components by means of [`Has`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Has.html) constraints. One step when creating your application is defining a big environment record whose fields are the components, and giving it suitable `Has` instances.
 
-Environments often have two type parameters: 
+Environments often have [two type parameters](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Env.html#g:6): 
 
 - One is an `Applicative` "phase" that wraps each field and describes how far along we are in the process of constructing the environment (the `Identity` function correspond to a "finished" environment, ready to be used).
 - The other is the effect monad which parameterizes each component in the environment.
