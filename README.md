@@ -1,6 +1,11 @@
 # dep-t-dynamic
 
+This library is a compation to [dep-t](https://hackage.haskell.org/package/dep-t) and in particular it complements the [`Dep.Env`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Dep-Env.html) module. It provides various types of dependency injection environments that are dynamically typed to some degree: missing dependencies are not detected at compilation time. Static checks are sacrificed for advantages like faster compilation.
+
 [![dep-t-dynamic.png](https://i.postimg.cc/DyP2zxcf/dep-t-dynamic.png)](https://postimg.cc/9rz38tSs)
+
+- **Dep.Dynamic** is the simplest dynamic environment, but it doesn't give many guarantees.
+- **Dep.Checked** and **Dep.SimpleChecked** give greater guarantees at the cost of more ceremony and explicitness. **Dep.Checked** can only be used with the [`DepT`](https://hackage.haskell.org/package/dep-t-0.6.0.0/docs/Control-Monad-Dep.html) monad.
 
 ## Relationship with the "registry" package
 

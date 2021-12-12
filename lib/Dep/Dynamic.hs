@@ -14,7 +14,7 @@
 -- It's not checked at compilation time that the dependencies for all
 -- components in the environment are also present in the environment. A
 -- `DynamicEnv` exception will be thrown at run time whenever a component tries to
--- find a dependency that doesn't exist.
+-- find a dependency that doesn't exist. See `Dep.Checked` and `Dep.SimpleChecked` for safer (but still dynamically typed) approaches.
 module Dep.Dynamic
   (
   -- * A dynamic environment
