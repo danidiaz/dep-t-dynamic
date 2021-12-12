@@ -57,11 +57,13 @@ checkedDep ::
     R.Typeable phases,
     R.Typeable m,
     HasAll rs m (DynamicEnv Identity m),
+    Monad m, 
     MonadSatisfiesAll mcs m
   ) =>
   -- | stuff
   ( forall e n.
     ( HasAll rs n e,
+      Monad m, 
       MonadSatisfiesAll mcs n
     ) =>
     (phases `Compose` Constructor e) (r_ n)

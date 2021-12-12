@@ -97,6 +97,8 @@ import System.IO
 import Test.Tasty
 import Test.Tasty.HUnit
 import Prelude hiding (insert, lookup)
+import Data.HashSet (HashSet)
+import Data.HashSet qualified as HashSet
 
 -- THE BUSINESS LOGIC
 --
@@ -254,6 +256,42 @@ env =
                   )
       )
     $ mempty
+
+
+envLoggerMissing :: SC.CheckedEnv Phases (ReaderT SyntheticCallStack IO)
+envLoggerMissing =
+    SC.checkedDep @(Tagged "secondary" Logger) @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateBombs 0 <&> \bombs ->
+            \_ ->
+              advising
+                ( adviseRecord @Top @Top \method ->
+                    keepCallStack ioEx method <> injectFailures bombs
+                )
+                (tagged @"secondary" makeStdoutLogger)
+      )
+    . SC.checkedDep @Repository @'[Logger] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateSet <&> \ref ->
+            \env ->
+              advising
+                ( adviseRecord @Top @Top \method ->
+                    keepCallStack ioEx method
+                )
+                (makeInMemoryRepository ref env)
+      )
+    . SC.checkedDep @Controller @'[Logger, Repository] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          pure @Allocator $
+            \env ->
+              makeController env
+                & advising
+                  ( adviseRecord @Top @Top \method ->
+                      keepCallStack ioEx method
+                  )
+      )
+    $ mempty
+
 
 -- Catch only IOExceptions for this example.
 ioEx :: SomeException -> Maybe IOError
@@ -478,6 +516,13 @@ testSyntheticCallStackTagged = do
     Left (SyntheticStackTraceException (fromException @IOError -> Just ex) trace) ->
       assertEqual "exception with callstack" expectedExceptionTagged (ex, trace)
     Right _ -> assertFailure "expected exception did not appear"
+
+
+-- Test that missing dependencies are correctly identified.
+testMissingDeps :: Assertion
+testMissingDeps = do
+  let Left missingDeps = SC.checkEnv env
+   in assertEqual "Detected logger is missing" (HashSet.singleton (depRep @Logger)) missingDeps
 
 -- Test the "DepT"-based version of the environment.
 testSyntheticCallStack' :: Assertion

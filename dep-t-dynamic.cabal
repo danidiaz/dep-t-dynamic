@@ -72,6 +72,7 @@ test-suite synthetic-callstack-tests
   main-is:             synthetic-callstack-tests.hs
   build-depends:       aeson,
                        containers,
+                       unordered-containers >= 0.2.14,
                        microlens ^>= 0.4.12.0
 
 -- VERY IMPORTANT for doctests to work: https://stackoverflow.com/a/58027909/1364288
