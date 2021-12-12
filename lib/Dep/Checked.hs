@@ -17,6 +17,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
+-- | __NOTE__: This module can only be used when your dependencies live in the 'Control.Monad.Dep.DepT' monad. 
+-- Use 'Dep.SimpleChecked' instead when dependencies are handled in an 'Dep.Env.Constructor' phase.
 module Dep.Checked
   (
   CheckedEnv,
