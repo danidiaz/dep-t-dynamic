@@ -16,7 +16,17 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
 
-module Dep.SimpleChecked where
+module Dep.SimpleChecked (
+  CheckedEnv,
+  checkedDep,
+  getUnchecked,
+  checkEnv,
+  DepGraph (..),
+  SomeMonadConstraintRep (..),
+  monadConstraintRep,
+  -- * Re-exports
+  mempty
+) where
 
 import Data.Functor.Compose
 import Data.HashSet (HashSet)
@@ -98,11 +108,14 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
 --   CheckedEnv phases m
 -- terminalDep f = checkedDep @'[] @mcs @r_ @phases @m (Compose (f <&> \c -> constructor (const c)))
 
-emptyCheckedEnv :: forall phases m . CheckedEnv phases m
-emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
+instance Semigroup (CheckedEnv phases m) where
+  CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
-unchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
-unchecked (CheckedEnv g d) = (g, d)
+instance Monoid (CheckedEnv phases m) where
+  mempty = CheckedEnv mempty mempty
+
+getUnchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+getUnchecked (CheckedEnv g d) = (g, d)
 
 checkEnv :: CheckedEnv phases m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 

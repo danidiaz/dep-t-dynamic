@@ -234,3 +234,15 @@ data DepGraph = DepGraph
     depToDep :: Graph SomeDepRep, 
     depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep
   }
+
+instance Semigroup DepGraph where 
+  DepGraph {provided = provided1, required = required1, depToDep = depToDep1, depToMonad = depToMonad1}
+   <> DepGraph {provided = provided2, required = required2, depToDep = depToDep2, depToMonad = depToMonad2} =
+     DepGraph { provided = provided1 <> provided2
+      , required = required1 <> required2
+      , depToDep = overlay depToDep1 depToDep2
+      , depToMonad = Bipartite.overlay depToMonad1 depToMonad2
+     }
+
+instance Monoid DepGraph where
+  mempty = DepGraph mempty mempty Algebra.Graph.empty Bipartite.empty

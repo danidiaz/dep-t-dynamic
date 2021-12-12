@@ -17,7 +17,18 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
-module Dep.Checked where
+module Dep.Checked
+  (
+  CheckedEnv,
+  checkedDep,
+  getUnchecked,
+  checkEnv,
+  DepGraph (..),
+  SomeMonadConstraintRep (..),
+  monadConstraintRep,
+  -- * Re-exports
+  mempty
+  ) where
 
 import Control.Monad.Dep
 import Data.Functor.Compose
@@ -39,19 +50,19 @@ import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
-data CheckedEnv phases re_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT re_ m))
+data CheckedEnv phases rune_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT rune_ m))
 
 checkedDep ::
-  forall rs mcs r_ phases re_ m.
+  forall rs mcs r_ phases rune_ m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
     R.Typeable phases,
-    R.Typeable re_,
+    R.Typeable rune_,
     R.Typeable m,
-    HasAll rs (DepT re_ m) (re_ (DepT re_ m)),
-    forall s_ z n. Has s_ n (DynamicEnv Identity n) => Has s_ n (re_ n),
-    MonadSatisfiesAll mcs (DepT re_ m)
+    HasAll rs (DepT rune_ m) (rune_ (DepT rune_ m)),
+    forall s_ z n. Has s_ n (DynamicEnv Identity n) => Has s_ n (rune_ n),
+    MonadSatisfiesAll mcs (DepT rune_ m)
   ) =>
   -- | stuff
   ( forall e_ n.
@@ -61,8 +72,8 @@ checkedDep ::
     phases (r_ (DepT e_ n))
   ) ->
   -- | stuff
-  CheckedEnv phases re_ m ->
-  CheckedEnv phases re_ m
+  CheckedEnv phases rune_ m ->
+  CheckedEnv phases rune_ m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
@@ -78,15 +89,18 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
         ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
         }
-   in CheckedEnv depGraph' (insertDep (f @re_) de)
+   in CheckedEnv depGraph' (insertDep (f @rune_) de)
 
-emptyCheckedEnv :: forall phases re_ m . CheckedEnv phases re_ m
-emptyCheckedEnv = CheckedEnv (DepGraph mempty mempty empty Bipartite.empty) mempty
+instance Semigroup (CheckedEnv phases rune_ m) where
+  CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
-unchecked :: CheckedEnv phases re_ m -> (DepGraph, DynamicEnv phases (DepT re_ m))
-unchecked (CheckedEnv g d) = (g, d)
+instance Monoid (CheckedEnv phases rune_ m) where
+  mempty = CheckedEnv mempty mempty
 
-checkEnv :: CheckedEnv phases re_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv phases (DepT re_ m))
+getUnchecked :: CheckedEnv phases rune_ m -> (DepGraph, DynamicEnv phases (DepT rune_ m))
+getUnchecked (CheckedEnv g d) = (g, d)
+
+checkEnv :: CheckedEnv phases rune_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv phases (DepT rune_ m))
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
   let missing = HashSet.difference required provided 
    in if HashSet.null missing
