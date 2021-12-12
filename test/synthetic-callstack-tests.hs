@@ -379,6 +379,37 @@ env' =
       )
   $ mempty
 
+
+envLoggerMissing' :: C.CheckedEnv Phases' (CallEnv SyntheticCallStack (DynamicEnv Identity)) IO
+-- env' :: Env Phases' (DepT (CallEnv SyntheticCallStack (Env Identity)) IO)
+envLoggerMissing' =
+    C.checkedDep @(Tagged "secondary" Logger) @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateBombs 0 <&> \bombs ->
+            A.component \_ ->
+                A.adviseRecord @Top @Top (\method ->
+                  A.keepCallStack ioEx method <> A.injectFailures bombs)
+                (tagged @"secondary" makeStdoutLogger)
+      )
+    . C.checkedDep @Repository @'[Logger] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateSet <&> \ref ->
+            A.component \env ->
+                A.adviseRecord @Top @Top (\method ->
+                  A.keepCallStack ioEx method)
+                (makeInMemoryRepository ref env)
+      )
+    . C.checkedDep @Controller @'[Logger, Repository] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          pure @Allocator $
+            A.component \env ->
+              A.adviseRecord @Top @Top (\method ->
+                A.keepCallStack ioEx method)
+              (makeController env)
+      )
+  $ mempty
+
+
 -- THE COMPOSITION ROOT - YET ANOTER APPROACH
 --
 -- This approach also uses DepT, but not to carry the dependencies, only to carry
@@ -521,7 +552,7 @@ testSyntheticCallStackTagged = do
 -- Test that missing dependencies are correctly identified.
 testMissingDeps :: Assertion
 testMissingDeps = do
-  let Left missingDeps = SC.checkEnv env
+  let Left missingDeps = SC.checkEnv envLoggerMissing
    in assertEqual "Detected logger is missing" (HashSet.singleton (depRep @Logger)) missingDeps
 
 -- Test the "DepT"-based version of the environment.
@@ -562,6 +593,12 @@ testSyntheticCallStackTagged' = do
     Left (SyntheticStackTraceException (fromException @IOError -> Just ex) trace) ->
       assertEqual "exception with callstack" expectedExceptionTagged (ex, trace)
     Right _ -> assertFailure "expected exception did not appear"
+
+-- Test that missing dependencies are correctly identified.
+testMissingDeps' :: Assertion
+testMissingDeps' = do
+  let Left missingDeps = C.checkEnv envLoggerMissing'
+   in assertEqual "Detected logger is missing" (HashSet.singleton (depRep @Logger)) missingDeps
 
 testSyntheticCallStack'' :: Assertion
 testSyntheticCallStack'' = do
@@ -614,8 +651,10 @@ tests =
     "All"
     [ testCase "synthetic call stack" testSyntheticCallStack,
       testCase "synthetic call stack with Tagged" testSyntheticCallStackTagged,
+      testCase "missing deps" testMissingDeps,
       testCase "synthetic call stack - DepT" testSyntheticCallStack',
       testCase "synthetic call stack with Tagged - DepT" testSyntheticCallStackTagged',
+      testCase "missing deps - DepT" testMissingDeps',
       testCase "synthetic call stack - constructor + DepT" testSyntheticCallStack'',
       testCase "synthetic call stack with Tagged - constructor + DepT" testSyntheticCallStackTagged''
     ]
