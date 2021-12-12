@@ -20,6 +20,7 @@ module Dep.Dynamic
   -- * A dynamic environment
     DynamicEnv
   , insertDep
+  , insertBareDep
   , deleteDep
   , DepNotFound (..)
   , SomeDepRep (..)

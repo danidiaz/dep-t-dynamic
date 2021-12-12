@@ -72,6 +72,20 @@ insertDep component (DynamicEnv dict) =
   let key = SomeDepRep (R.typeRep @r_)
    in DynamicEnv (H.insert key (toDyn component) dict)
 
+-- | Convenience function combining 'insertDep' and 'fromBare'.
+-- __TYPE APPLICATION REQUIRED__ You must provide the type of the parameterizable record @r_@ with a type application.
+insertBareDep ::
+  forall r_ h m.
+  (Typeable r_, 
+   Typeable h, 
+   Typeable m,
+   Coercible (Bare (h (r_ m))) (h (r_ m))
+   ) =>
+  Bare (h (r_ m)) ->
+  DynamicEnv h m ->
+  DynamicEnv h m
+insertBareDep bareComponent = insertDep @r_ (fromBare bareComponent)
+
 -- | The record type to delete is supplied through a type application.
 deleteDep ::
   forall (r_ :: (Type -> Type) -> Type) h m.

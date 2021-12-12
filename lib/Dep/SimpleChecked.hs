@@ -15,6 +15,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Dep.SimpleChecked (
   CheckedEnv,
@@ -46,6 +47,7 @@ import Type.Reflection qualified as R
 import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
+import Data.Coerce
 
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
@@ -85,6 +87,31 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
         }
    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
+
+
+checkedBareDep ::
+  forall rs mcs r_ phases m.
+  ( SOP.All R.Typeable rs,
+    SOP.All R.Typeable mcs,
+    R.Typeable r_,
+    R.Typeable phases,
+    R.Typeable m,
+    HasAll rs m (DynamicEnv Identity m),
+    MonadSatisfiesAll mcs m --,
+    -- Coercible (Bare ((phases `Compose` Constructor (DynamicEnv Identity m)) (r_ m))) ((phases `Compose` Constructor (DynamicEnv Identity m)) (r_ m))
+  ) =>
+  -- | stuff
+  ( forall e n.
+    ( HasAll rs n e,
+      MonadSatisfiesAll mcs n,
+      (n ~ m, e ~ DynamicEnv Identity m) => Coercible (Bare ((phases `Compose` Constructor e) (r_ n))) ((phases `Compose` Constructor e) (r_ n))
+    ) =>
+    Bare ((phases `Compose` Constructor e) (r_ n))
+  ) ->
+  -- | stuff
+  CheckedEnv phases m ->
+  CheckedEnv phases m
+checkedBareDep f = checkedDep @rs @mcs @r_ (fromBare @((phases `Compose` Constructor (DynamicEnv Identity m)) (r_ m)) (f @(DynamicEnv Identity m) @m))
 
 
 -- terminalDep ::
