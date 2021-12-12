@@ -25,6 +25,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main (main) where
 
