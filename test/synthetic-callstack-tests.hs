@@ -22,12 +22,13 @@
 
 -- | An example of how an application can make use of the "dep-t" and
 -- "dep-t-advice" packages for keeping a "synthetic" call stack that tracks the
--- invocations of monadic functions—though only of those which take part in dependency
+-- invocations of monadic functions, though only of those which take part in dependency
 -- injection.
 --
 -- We are assuming that the application follows a "record-of-functions" style.
 module Main (main) where
 
+import Control.Arrow ((>>>))
 import Control.Exception
 import Control.Monad.Dep (DepT)
 import Control.Monad.IO.Unlift
@@ -35,8 +36,8 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Cont
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Control.Arrow ((>>>))
 import Data.Functor.Compose
+import Data.Functor.Const
 import Data.Functor.Constant
 import Data.Functor.Identity
 import Data.IORef
@@ -46,8 +47,10 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Typeable
 import Dep.Advice qualified as A
+import Dep.Advice.Basic (MonadCallStack)
 import Dep.Advice.Basic qualified as A
-import Dep.Has
+import Dep.Checked qualified as C
+import Dep.Dynamic
 import Dep.Env
   ( Autowireable,
     Autowired (..),
@@ -57,15 +60,16 @@ import Dep.Env
     Phased,
     bindPhase,
     constructor,
+    demoteFieldNames,
     fixEnv,
     pullPhase,
     skipPhase,
   )
 import Dep.Has
+import Dep.Has
   ( Has (dep),
     asCall,
   )
-import Dep.Tagged (Tagged (..), tagged, untag)
 import Dep.SimpleAdvice
   ( Advice,
     AspectT (..),
@@ -84,16 +88,14 @@ import Dep.SimpleAdvice.Basic
     injectFailures,
     keepCallStack,
   )
-import Dep.Dynamic
 import Dep.SimpleChecked qualified as SC
-import Dep.Checked qualified as C
+import Dep.Tagged (Tagged (..), tagged, untag)
 import GHC.Generics (Generic)
 import GHC.TypeLits
 import Lens.Micro (Lens', lens)
 import System.IO
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Functor.Const
 import Prelude hiding (insert, lookup)
 
 -- THE BUSINESS LOGIC
@@ -165,7 +167,8 @@ makeController (asCall -> call) =
     }
 
 type MakeController2LoggersDeps = '[Logger, Tagged "secondary" Logger, Repository]
-makeController2Loggers :: 
+
+makeController2Loggers ::
   (HasAll MakeController2LoggersDeps m env, Monad m) =>
   env ->
   Controller m
@@ -178,7 +181,6 @@ makeController2Loggers (asCall -> call) =
         call lookup toLookup
     }
 
-
 -- THE COMPOSITION ROOT
 --
 -- Here we define our dependency injection environment.
@@ -190,6 +192,7 @@ makeController2Loggers (asCall -> call) =
 -- go through in  the construction of the environment. When `h` becomes
 -- Identity, the environment is ready for use. (This is an example of the
 -- "Higer-Kinded Data" pattern.)
+
 data Env h m = Env
   { logger :: h (Logger m),
     logger2 :: h (Tagged "secondary" Logger m),
@@ -219,7 +222,7 @@ type Allocator = ContT () IO
 --
 -- There could be more phases, like for example an initial "read configuration"
 -- phase.
-type Phases env = Allocator `Compose` Constructor env
+type Phases = Allocator
 
 -- Environment value
 --
@@ -228,42 +231,49 @@ type Phases env = Allocator `Compose` Constructor env
 --
 -- Notice that neither the interfaces nor the implementations which we defined
 -- earlier knew anything about the ReaderT.
-env :: Env (Phases (Env Identity (ReaderT SyntheticCallStack IO))) (ReaderT SyntheticCallStack IO)
+env :: SC.CheckedEnv Phases (ReaderT SyntheticCallStack IO)
 env =
-  Env
-    { logger =
-        allocateBombs 1 `bindPhase` \bombs ->
-          constructor \_ ->
-            makeStdoutLogger
-              & advising
+  SC.checkedDep @Logger @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+    ( fromBare $
+        allocateBombs 1 <&> \bombs ->
+          \_ ->
+            advising
+              ( adviseRecord @Top @Top \method ->
+                  keepCallStack ioEx method <> injectFailures bombs
+              )
+              makeStdoutLogger
+    )
+    . SC.checkedDep @(Tagged "secondary" Logger) @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateBombs 0 <&> \bombs ->
+            \_ ->
+              advising
                 ( adviseRecord @Top @Top \method ->
                     keepCallStack ioEx method <> injectFailures bombs
-                ),
-      logger2 =
-        allocateBombs 0 `bindPhase` \bombs ->
-          constructor \_ ->
-            tagged @"secondary" makeStdoutLogger
-              & advising
-                ( adviseRecord @Top @Top \method ->
-                    keepCallStack ioEx method <> injectFailures bombs
-                ),
-      repository =
-        allocateSet `bindPhase` \ref ->
-          constructor \env ->
-            makeInMemoryRepository ref env
-              & advising
-                ( adviseRecord @Top @Top \method ->
-                    keepCallStack ioEx method
-                ),
-      controller =
-        skipPhase @Allocator $
-          constructor \env ->
-            makeController env
-              & advising
+                )
+                (tagged @"secondary" makeStdoutLogger)
+      )
+    . SC.checkedDep @Repository @'[Logger] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateSet <&> \ref ->
+            \env ->
+              advising
                 ( adviseRecord @Top @Top \method ->
                     keepCallStack ioEx method
                 )
-    }
+                (makeInMemoryRepository ref env)
+      )
+    . SC.checkedDep @Controller @'[Logger, Repository] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          pure @Allocator $
+            \env ->
+              makeController env
+                & advising
+                  ( adviseRecord @Top @Top \method ->
+                      keepCallStack ioEx method
+                  )
+      )
+    $ mempty
 
 -- Catch only IOExceptions for this example.
 ioEx :: SomeException -> Maybe IOError
@@ -309,7 +319,7 @@ instance HasSyntheticCallStack (CallEnv SyntheticCallStack e_ m) where
 
 -- Here use the DepT monad (a variant of ReaderT) as the base monad.
 --
--- The environment of DepT includes—just as before—the SyntheticCallStack value
+-- The environment of DepT includes-just as before-the SyntheticCallStack value
 -- that is used to trace each sub-call.
 --
 -- But now it also includes the dependency injection context with all the
@@ -343,48 +353,62 @@ env' =
                 A.keepCallStack ioEx method
     }
 
-
 -- THE COMPOSITION ROOT - YET ANOTER APPROACH
 --
--- This approach also uses DepT, but not to carry the dependencies, only to carry 
--- the call stack (like ReaderT in the first approach). 
+-- This approach also uses DepT, but not to carry the dependencies, only to carry
+-- the call stack (like ReaderT in the first approach).
 --
 -- This is done by parameterizing DepT with Constant, which makes DepT
 -- behave almost as a regular ReaderT.
--- 
+--
 -- What are the benefits of unsing DepT instead of ReaderT here? Well, basically
 -- being able to use runFinalDepT in the test, which feels somewhat cleaner than
 -- runReaderT.
 type RT e m = DepT (Constant e) m
 
-env'' :: Env (Phases (Env Identity (RT SyntheticCallStack IO))) (RT SyntheticCallStack IO)
-env'' = 
-  Env
-    { logger =
-        allocateBombs 1 `bindPhase` \bombs ->
-          constructor \_ ->
-            makeStdoutLogger
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method <> A.injectFailures bombs,
-      logger2 =
-        allocateBombs 0 `bindPhase` \bombs ->
-           constructor \_ ->
-            tagged @"secondary" makeStdoutLogger
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method <> A.injectFailures bombs,
-      repository =
-        allocateSet `bindPhase` \ref ->
-          constructor \env ->
-            makeInMemoryRepository ref env
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method,
-      controller =
-        skipPhase @Allocator $
-          constructor \env ->
-            makeController env
-              & A.adviseRecord @Top @Top \method ->
-                A.keepCallStack ioEx method
-    }
+env'' :: SC.CheckedEnv Phases (RT SyntheticCallStack IO)
+env'' =
+  SC.checkedDep @Logger @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+    ( fromBare $
+        allocateBombs 1 <&> \bombs ->
+          \_ ->
+            advising
+              ( adviseRecord @Top @Top \method ->
+                  keepCallStack ioEx method <> injectFailures bombs
+              )
+              makeStdoutLogger
+    )
+    . SC.checkedDep @(Tagged "secondary" Logger) @'[] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateBombs 0 <&> \bombs ->
+            \_ ->
+              advising
+                ( adviseRecord @Top @Top \method ->
+                    keepCallStack ioEx method <> injectFailures bombs
+                )
+                (tagged @"secondary" makeStdoutLogger)
+      )
+    . SC.checkedDep @Repository @'[Logger] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          allocateSet <&> \ref ->
+            \env ->
+              advising
+                ( adviseRecord @Top @Top \method ->
+                    keepCallStack ioEx method
+                )
+                (makeInMemoryRepository ref env)
+      )
+    . SC.checkedDep @Controller @'[Logger, Repository] @'[MonadUnliftIO, MonadCallStack, MonadFail]
+      ( fromBare $
+          pure @Allocator $
+            \env ->
+              makeController env
+                & advising
+                  ( adviseRecord @Top @Top \method ->
+                      keepCallStack ioEx method
+                  )
+      )
+    $ mempty
 
 -- TESTS
 --
@@ -393,29 +417,31 @@ expectedException :: (IOError, SyntheticStackTrace)
 expectedException =
   ( userError "oops",
     NonEmpty.fromList
-    [ NonEmpty.fromList [(typeRep (Proxy @Logger), "emitMsg")],
-      NonEmpty.fromList [(typeRep (Proxy @Repository), "insert")],
-      NonEmpty.fromList [(typeRep (Proxy @Controller), "route")]
-    ]
+      [ NonEmpty.fromList [(typeRep (Proxy @Logger), "emitMsg")],
+        NonEmpty.fromList [(typeRep (Proxy @Repository), "insert")],
+        NonEmpty.fromList [(typeRep (Proxy @Controller), "route")]
+      ]
   )
 
 expectedExceptionTagged :: (IOError, SyntheticStackTrace)
 expectedExceptionTagged =
   ( userError "oops",
     NonEmpty.fromList
-    [ NonEmpty.fromList [
-                (typeRep (Proxy @Logger), "emitMsg")
-        ,       (typeRep (Proxy @(Tagged "secondary" Logger)), "unTagged")
-        ],
-      NonEmpty.fromList [(typeRep (Proxy @Controller), "route")]
-    ]
+      [ NonEmpty.fromList
+          [ (typeRep (Proxy @Logger), "emitMsg"),
+            (typeRep (Proxy @(Tagged "secondary" Logger)), "unTagged")
+          ],
+        NonEmpty.fromList [(typeRep (Proxy @Controller), "route")]
+      ]
   )
 
 -- Test the "Constructor"-based version of the environment.
 testSyntheticCallStack :: Assertion
 testSyntheticCallStack = do
-  let action =
-        runContT (pullPhase @Allocator env) \constructors -> do
+  let Right (_, denv) = SC.checkEnv env
+      allocators = pullPhase denv
+      action =
+        runContT allocators \constructors -> do
           -- here we complete the construction of the environment
           let (asCall -> call) = fixEnv constructors
           flip
@@ -434,18 +460,22 @@ testSyntheticCallStack = do
 -- Test the "Constructor"-based version of the environment.
 testSyntheticCallStackTagged :: Assertion
 testSyntheticCallStackTagged = do
-  let envz = env {
-          controller =
-            skipPhase @Allocator $
-              constructor \env ->
-                makeController2Loggers env
-                  & advising
+  let Right (_, denv) = SC.checkEnv env
+      denv' =
+        insertDep @Controller
+          ( fromBare $
+              pure @Allocator $
+                \env ->
+                  advising
                     ( adviseRecord @Top @Top \method ->
                         keepCallStack ioEx method
                     )
-        }
+                    (makeController2Loggers env)
+          )
+          denv
+      allocators = pullPhase denv'
       action =
-        runContT (pullPhase @Allocator envz) \constructors -> do
+        runContT allocators \constructors -> do
           -- here we complete the construction of the environment
           let (asCall -> call) = fixEnv constructors
           flip
@@ -460,7 +490,6 @@ testSyntheticCallStackTagged = do
     Left (SyntheticStackTraceException (fromException @IOError -> Just ex) trace) ->
       assertEqual "exception with callstack" expectedExceptionTagged (ex, trace)
     Right _ -> assertFailure "expected exception did not appear"
-
 
 -- Test the "DepT"-based version of the environment.
 testSyntheticCallStack' :: Assertion
@@ -477,14 +506,15 @@ testSyntheticCallStack' = do
 
 testSyntheticCallStackTagged' :: Assertion
 testSyntheticCallStackTagged' = do
-  let envz = env' {
-          controller =
-            skipPhase @Allocator $
-              Identity $ A.component \env ->
-                makeController2Loggers env
-                  & A.adviseRecord @Top @Top \method ->
-                    A.keepCallStack ioEx method
-        }
+  let envz =
+        env'
+          { controller =
+              skipPhase @Allocator $
+                Identity $ A.component \env ->
+                  makeController2Loggers env
+                    & A.adviseRecord @Top @Top \method ->
+                      A.keepCallStack ioEx method
+          }
       action =
         runContT (pullPhase @Allocator envz) \runnable -> do
           _ <- A.runFromDep (pure (CallEnv [] runnable)) route 1 2
@@ -495,12 +525,12 @@ testSyntheticCallStackTagged' = do
       assertEqual "exception with callstack" expectedExceptionTagged (ex, trace)
     Right _ -> assertFailure "expected exception did not appear"
 
-
-
 testSyntheticCallStack'' :: Assertion
 testSyntheticCallStack'' = do
-  let action =
-        runContT (pullPhase @Allocator env'') \constructors -> do
+  let Right (_, denv) = SC.checkEnv env''
+      allocators = pullPhase denv
+      action =
+        runContT allocators \constructors -> do
           -- here we complete the construction of the environment
           let (asCall -> call) = fixEnv constructors
           A.runFinalDepT (pure (Constant [])) (call route) 1 2
@@ -511,20 +541,25 @@ testSyntheticCallStack'' = do
       assertEqual "exception with callstack" expectedException (ex, trace)
     Right _ -> assertFailure "expected exception did not appear"
 
-
 -- Test the "Constructor"-based version of the environment.
 testSyntheticCallStackTagged'' :: Assertion
 testSyntheticCallStackTagged'' = do
-  let envz = env'' {
-          controller =
-            skipPhase @Allocator $
-              constructor \env ->
-                makeController2Loggers env
-                  & A.adviseRecord @Top @Top \method ->
-                    A.keepCallStack ioEx method
-        }
+  let Right (_, denv) = SC.checkEnv env''
+      denv' =
+        insertDep @Controller
+          ( fromBare $
+              pure @Allocator $
+                \env ->
+                  advising
+                    ( adviseRecord @Top @Top \method ->
+                        keepCallStack ioEx method
+                    )
+                    (makeController2Loggers env)
+          )
+          denv
+      allocators = pullPhase denv'
       action =
-        runContT (pullPhase @Allocator envz) \constructors -> do
+        runContT allocators \constructors -> do
           -- here we complete the construction of the environment
           let (asCall -> call) = fixEnv constructors
           A.runFinalDepT (pure (Constant [])) (call route) 1 2

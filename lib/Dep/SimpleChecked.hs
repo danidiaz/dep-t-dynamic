@@ -50,7 +50,7 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
 checkedDep ::
-  forall rs mcs r_ phases m.
+  forall r_ rs mcs phases m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,

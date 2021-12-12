@@ -53,7 +53,7 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 data CheckedEnv phases rune_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT rune_ m))
 
 checkedDep ::
-  forall rs mcs r_ phases rune_ m.
+  forall r_ rs mcs phases rune_ m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
