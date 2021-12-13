@@ -147,3 +147,29 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
    in if HashSet.null missing
       then Right (g, d)
       else Left missing
+
+-- $setup
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XImportQualifiedPost
+-- >>> :set -XStandaloneKindSignatures
+-- >>> :set -XNamedFieldPuns
+-- >>> :set -XFunctionalDependencies
+-- >>> :set -XFlexibleContexts
+-- >>> :set -XDataKinds
+-- >>> :set -XBlockArguments
+-- >>> :set -XFlexibleInstances
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XViewPatterns
+-- >>> :set -XScopedTypeVariables
+-- >>> import Data.Kind
+-- >>> import Control.Monad.Dep
+-- >>> import Data.Function
+-- >>> import GHC.Generics (Generic)
+-- >>> import Dep.Has
+-- >>> import Dep.Env
+-- >>> import Dep.Dynamic
+-- >>> import Dep.SimpleChecked
+-- >>> import Dep.Advice (component, runFromDep)

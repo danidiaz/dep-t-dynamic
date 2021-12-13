@@ -157,9 +157,6 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
       then Right (g, d)
       else Left missing
 
--- phaselessDep (no phases, only the constructor)
---
-
 -- $setup
 --
 -- >>> :set -XTypeApplications
