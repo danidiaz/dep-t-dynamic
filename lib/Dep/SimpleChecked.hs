@@ -119,7 +119,7 @@ checkedDep ::
     Monad m, 
     MonadSatisfiesAll mcs m
   ) =>
-  -- | stuff
+  -- | The wrapped component
   ( forall e n.
     ( HasAll rs n e,
       Monad m, 
@@ -127,7 +127,7 @@ checkedDep ::
     ) =>
     (phases `Compose` Constructor e) (r_ n)
   ) ->
-  -- | stuff
+  -- | The environment in which to insert
   CheckedEnv phases m ->
   CheckedEnv phases m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
