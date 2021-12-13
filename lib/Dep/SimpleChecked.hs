@@ -43,6 +43,20 @@
 -- :}
 -- this is bar
 --
+-- An example of a failed check:
+--
+-- >>> :{
+--  badEnv :: CheckedEnv Identity IO
+--  badEnv = mempty 
+--      & checkedDep @Bar @'[Foo] @'[] (fromBare makeBar) 
+-- :}
+--
+-- >>> :{
+--  let Left missing = checkEnv badEnv
+--   in missing
+-- :}
+-- fromList [Foo]
+--
 module Dep.SimpleChecked (
   -- * A checked environment
   CheckedEnv,
@@ -177,6 +191,7 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
 -- >>> import Control.Monad.Dep
 -- >>> import Data.Function
 -- >>> import GHC.Generics (Generic)
+-- >>> import Data.Either
 -- >>> import Dep.Has
 -- >>> import Dep.Env
 -- >>> import Dep.Dynamic

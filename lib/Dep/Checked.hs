@@ -24,6 +24,43 @@
 -- components that are added to it, allowing you to check if all
 -- dependencies
 -- are satisfied before running the program logic.
+--
+-- >>> :{
+--  newtype Foo d = Foo {foo :: String -> d ()} deriving Generic
+--  newtype Bar d = Bar {bar :: String -> d ()} deriving Generic
+--  makeIOFoo :: MonadIO m => Foo m
+--  makeIOFoo = Foo (liftIO . putStrLn)
+--  makeBar :: Has Foo m env => env -> Bar m
+--  makeBar (asCall -> call) = Bar (call foo)
+--  env :: CheckedEnv Identity (DynamicEnv Identity) IO
+--  env = mempty 
+--      & checkedDep @Foo @'[]    @'[MonadIO] (Identity (component \_ -> makeIOFoo))
+--      & checkedDep @Bar @'[Foo] @'[]        (Identity (component makeBar)) 
+--  envReady :: DynamicEnv Identity (DepT (DynamicEnv Identity) IO)
+--  envReady = 
+--    let Right (_, checked) = checkEnv env
+--     in checked
+-- :}
+--
+-- >>> :{
+--  runFromDep (pure envReady) bar "this is bar"
+-- :}
+-- this is bar
+--
+-- An example of a failed check:
+--
+-- >>> :{
+--  badEnv :: CheckedEnv Identity (DynamicEnv Identity) IO
+--  badEnv = mempty 
+--      & checkedDep @Bar @'[Foo] @'[] (Identity (component makeBar)) 
+-- :}
+--
+-- >>> :{
+--  let Left missing = checkEnv badEnv
+--   in missing
+-- :}
+-- fromList [Foo]
+--
 module Dep.Checked
   (
   -- * A checked environment
@@ -171,5 +208,5 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
 -- >>> import Dep.Has
 -- >>> import Dep.Env
 -- >>> import Dep.Dynamic
--- >>> import Dep.SimpleChecked
+-- >>> import Dep.Checked
 -- >>> import Dep.Advice (component, runFromDep)
