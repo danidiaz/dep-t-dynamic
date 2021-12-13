@@ -74,31 +74,6 @@ instance Show SomeMonadConstraintRep where
 monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
 monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
 
--- | This type family clears newtypes like 'Compose', 'Identity' and 'Constant' from a composite type,
--- leaving you with a newtypeless nested type as result.
---
--- The idea is that it might be easier to construct values of the \"bare\" version of a composite type,
--- and later coerce them to the newtyped version using 'fromBare'.
---
--- This is mainly intended for defining the nested 'Applicative' \"phases\" of components that live in a 'Phased'
--- environment.
-type Bare :: Type -> Type
-type family Bare x where
-  Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
-  Bare (Identity x) = Bare x
-  Bare (Const x k) = Bare x
-  Bare (Constant x k) = Bare x
-  Bare other = other
-
--- | Convert a value from its bare version to the newtyped one, usually as a step
--- towards inserting it into a 'Phased' environment.
-fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
-fromBare = coerce
-
--- | Convert from the newtyped value to the bare one. 'fromBare' tends to be more useful.
-toBare :: Coercible phases (Bare phases) => phases -> Bare phases
-toBare = coerce
-
 type MonadSatisfiesAll :: [(Type -> Type) -> Constraint] -> (Type -> Type) -> Constraint
 type family MonadSatisfiesAll cs m where
   MonadSatisfiesAll '[] m = ()
