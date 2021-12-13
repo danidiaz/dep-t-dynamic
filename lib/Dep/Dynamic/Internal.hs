@@ -254,3 +254,28 @@ instance Semigroup DepGraph where
 
 instance Monoid DepGraph where
   mempty = DepGraph mempty mempty Algebra.Graph.empty Bipartite.empty
+
+
+-- $setup
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XImportQualifiedPost
+-- >>> :set -XTemplateHaskell
+-- >>> :set -XStandaloneKindSignatures
+-- >>> :set -XNamedFieldPuns
+-- >>> :set -XFunctionalDependencies
+-- >>> :set -XFlexibleContexts
+-- >>> :set -XDataKinds
+-- >>> :set -XBlockArguments
+-- >>> :set -XFlexibleInstances
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XViewPatterns
+-- >>> :set -XScopedTypeVariables
+-- >>> import Data.Kind
+-- >>> import Control.Monad.Dep
+-- >>> import Dep.Has
+-- >>> import Dep.Env
+-- >>> import Dep.Dynamic
+--

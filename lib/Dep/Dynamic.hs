@@ -8,6 +8,26 @@
 -- of components and putting all of them in a conventional record would slow
 -- compilation.
 --
+-- >>> :{
+--  newtype Foo d = Foo {foo :: String -> d ()}
+--  newtype Bar d = Bar {bar :: String -> d ()}
+--  makeIOFoo :: MonadIO m => Foo m
+--  makeIOFoo = Foo (liftIO . putStrLn)
+--  makeBar :: Has Foo m env => env -> Bar m
+--  makeBar (asCall -> call) = Bar (call foo)
+--  env :: DynamicEnv (Constructor (DynamicEnv Identity IO)) IO
+--  env = mempty 
+--      & insertDep @Foo (fromBare (\_ -> makeIOFoo))
+--      & insertDep @Bar (fromBare makeBar) 
+--  envReady :: DynamicEnv Identity IO
+--  envReady = fixEnv env
+-- :}
+--
+-- >>> :{
+--  bar (dep envReady) "this is bar"
+-- :}
+-- this is bar
+--
 -- Components are found by type. Use "Dep.Tagged" to disambiguate components of
 -- the same type.
 --
@@ -36,4 +56,26 @@ where
 import Dep.Dynamic.Internal
 import Data.Monoid
 
-
+-- $setup
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XImportQualifiedPost
+-- >>> :set -XStandaloneKindSignatures
+-- >>> :set -XNamedFieldPuns
+-- >>> :set -XFunctionalDependencies
+-- >>> :set -XFlexibleContexts
+-- >>> :set -XDataKinds
+-- >>> :set -XBlockArguments
+-- >>> :set -XFlexibleInstances
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XViewPatterns
+-- >>> :set -XScopedTypeVariables
+-- >>> import Data.Kind
+-- >>> import Control.Monad.Dep
+-- >>> import Dep.Has
+-- >>> import Dep.Env
+-- >>> import Dep.Dynamic
+-- >>> import Data.Function
+--
