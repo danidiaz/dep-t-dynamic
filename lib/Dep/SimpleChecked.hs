@@ -16,7 +16,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
 
--- | This module provides an environment which tracks the dependencies of all
+-- | This module provides an environment which tracks the dependencies of
 -- components that are added to it, allowing you to check if all
 -- dependencies
 -- are satisfied before running the program logic.
