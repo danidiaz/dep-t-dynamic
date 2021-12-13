@@ -261,7 +261,6 @@ instance Monoid DepGraph where
 -- >>> :set -XTypeApplications
 -- >>> :set -XMultiParamTypeClasses
 -- >>> :set -XImportQualifiedPost
--- >>> :set -XTemplateHaskell
 -- >>> :set -XStandaloneKindSignatures
 -- >>> :set -XNamedFieldPuns
 -- >>> :set -XFunctionalDependencies
@@ -275,7 +274,9 @@ instance Monoid DepGraph where
 -- >>> :set -XScopedTypeVariables
 -- >>> import Data.Kind
 -- >>> import Control.Monad.Dep
+-- >>> import Data.Function
+-- >>> import GHC.Generics (Generic)
 -- >>> import Dep.Has
 -- >>> import Dep.Env
 -- >>> import Dep.Dynamic
---
+-- >>> import Dep.Advice (component, runFromDep)

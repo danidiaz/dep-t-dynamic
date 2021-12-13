@@ -8,23 +8,39 @@
 -- of components and putting all of them in a conventional record would slow
 -- compilation.
 --
+-- A 'Dep.Env.fixEnv'-based example:
+--
 -- >>> :{
---  newtype Foo d = Foo {foo :: String -> d ()}
---  newtype Bar d = Bar {bar :: String -> d ()}
+--  newtype Foo d = Foo {foo :: String -> d ()} deriving Generic
+--  newtype Bar d = Bar {bar :: String -> d ()} deriving Generic
 --  makeIOFoo :: MonadIO m => Foo m
 --  makeIOFoo = Foo (liftIO . putStrLn)
 --  makeBar :: Has Foo m env => env -> Bar m
 --  makeBar (asCall -> call) = Bar (call foo)
 --  env :: DynamicEnv (Constructor (DynamicEnv Identity IO)) IO
 --  env = mempty 
---      & insertDep @Foo (fromBare (\_ -> makeIOFoo))
---      & insertDep @Bar (fromBare makeBar) 
+--      & insertDep @Foo (constructor (\_ -> makeIOFoo))
+--      & insertDep @Bar (constructor makeBar) 
 --  envReady :: DynamicEnv Identity IO
 --  envReady = fixEnv env
 -- :}
 --
 -- >>> :{
 --  bar (dep envReady) "this is bar"
+-- :}
+-- this is bar
+--
+-- The same example using 'Control.Monad.Dep.DepT' and 'Dep.Advice.component':
+--
+-- >>> :{
+--  env' :: DynamicEnv Identity (DepT (DynamicEnv Identity) IO)
+--  env' = mempty 
+--       & insertDep @Foo (Identity (component (\_ -> makeIOFoo)))
+--       & insertDep @Bar (Identity (component makeBar))
+-- :}
+--
+-- >>> :{
+--  runFromDep (pure env') bar "this is bar"
 -- :}
 -- this is bar
 --
@@ -74,8 +90,9 @@ import Data.Monoid
 -- >>> :set -XScopedTypeVariables
 -- >>> import Data.Kind
 -- >>> import Control.Monad.Dep
+-- >>> import Data.Function
+-- >>> import GHC.Generics (Generic)
 -- >>> import Dep.Has
 -- >>> import Dep.Env
 -- >>> import Dep.Dynamic
--- >>> import Data.Function
---
+-- >>> import Dep.Advice (component, runFromDep)

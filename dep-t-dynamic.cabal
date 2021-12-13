@@ -97,5 +97,6 @@ test-suite doctests
   build-depends:       
                        dep-t, 
                        dep-t-dynamic,
+                       dep-t-advice,
                        doctest            ^>= 0.18,
 
