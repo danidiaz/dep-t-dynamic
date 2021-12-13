@@ -59,7 +59,7 @@ import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
-data CheckedEnv phases rune_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT rune_ m))
+data CheckedEnv phases me_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT me_ m))
 
 -- | Add a component to a 'CheckedEnv'.
 --
@@ -80,17 +80,17 @@ data CheckedEnv phases rune_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT ru
 -- constraint, the 'DepT' environment must also have that constraint. This is trivially true when they are the same type,
 -- but may also be true when the 'DepT' environment wraps the 'DynamicEnv' and defines passthrough 'Has' instances.
 checkedDep ::
-  forall r_ rs mcs phases rune_ m.
+  forall r_ rs mcs phases me_ m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
     R.Typeable phases,
-    R.Typeable rune_,
+    R.Typeable me_,
     R.Typeable m,
-    HasAll rs (DepT rune_ m) (rune_ (DepT rune_ m)),
-    forall s_ z n. Has s_ n (DynamicEnv Identity n) => Has s_ n (rune_ n),
+    HasAll rs (DepT me_ m) (me_ (DepT me_ m)),
+    forall s_ z n. Has s_ n (DynamicEnv Identity n) => Has s_ n (me_ n),
     Monad m,
-    MonadSatisfiesAll mcs (DepT rune_ m)
+    MonadSatisfiesAll mcs (DepT me_ m)
   ) =>
   -- | stuff
   ( forall e_ n.
@@ -101,8 +101,8 @@ checkedDep ::
     phases (r_ (DepT e_ n))
   ) ->
   -- | stuff
-  CheckedEnv phases rune_ m ->
-  CheckedEnv phases rune_ m
+  CheckedEnv phases me_ m ->
+  CheckedEnv phases me_ m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
@@ -118,22 +118,22 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         ,   depToDep = overlay depToDep $ edges $ (depRep @r_,) <$> depReps
         ,   depToMonad = Bipartite.overlay depToMonad $ Bipartite.edges $ (depRep @r_,) <$> monadConstraintReps
         }
-   in CheckedEnv depGraph' (insertDep (f @rune_) de)
+   in CheckedEnv depGraph' (insertDep (f @me_) de)
 
 -- | '(<>)' might result in over-restrictive dependency graphs, because
 -- dependencies for colliding components are kept even as only one of the
 -- components is kept.
-instance Semigroup (CheckedEnv phases rune_ m) where
+instance Semigroup (CheckedEnv phases me_ m) where
   CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
 -- | 'mempty' is for creating the empty environment.
-instance Monoid (CheckedEnv phases rune_ m) where
+instance Monoid (CheckedEnv phases me_ m) where
   mempty = CheckedEnv mempty mempty
 
-getUnchecked :: CheckedEnv phases rune_ m -> (DepGraph, DynamicEnv phases (DepT rune_ m))
+getUnchecked :: CheckedEnv phases me_ m -> (DepGraph, DynamicEnv phases (DepT me_ m))
 getUnchecked (CheckedEnv g d) = (g, d)
 
-checkEnv :: CheckedEnv phases rune_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv phases (DepT rune_ m))
+checkEnv :: CheckedEnv phases me_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv phases (DepT me_ m))
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
   let missing = HashSet.difference required provided 
    in if HashSet.null missing
