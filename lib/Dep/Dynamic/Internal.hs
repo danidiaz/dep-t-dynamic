@@ -176,6 +176,7 @@ instance Hashable SomeDepRep where
 instance Show SomeDepRep where
     show (SomeDepRep r1) = show r1
 
+-- Produce a 'SomeDepRep' by means of a type application.
 depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
 depRep = SomeDepRep (R.typeRep @r_)
 
@@ -197,6 +198,7 @@ instance Hashable SomeMonadConstraintRep where
 instance Show SomeMonadConstraintRep where
     show (SomeMonadConstraintRep r1) = show r1
 
+-- Produce a 'SomeMonadConstraintRep' by means of a type application.
 monadConstraintRep :: forall (mc :: (Type -> Type) -> Constraint) . R.Typeable mc => SomeMonadConstraintRep
 monadConstraintRep = SomeMonadConstraintRep (R.typeRep @mc)
 

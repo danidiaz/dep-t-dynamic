@@ -53,6 +53,8 @@ import Data.Functor
 import Algebra.Graph 
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
+-- | A dependency injection environment for components with effects in the monad @m@.
+-- Parameterized by 'Applicative' @phases@, and the type @m@ of the effect monad.
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
 -- | Add a component to a 'CheckedEnv'.
@@ -61,7 +63,7 @@ data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Con
 --
 -- * The type @r_@ of the parameterizable record we want to add to the environment.
 --
--- * The type-level list @rs@ of the component types the @r_@ value depends on (might be empty).
+-- * The type-level list @rs@ of the components the @r_@ value depends on (might be empty).
 --
 -- * The type-level list @mcs@ of the constraints the @r_@ value requires from the base monad (might be empty).
 --
@@ -118,9 +120,13 @@ instance Semigroup (CheckedEnv phases m) where
 instance Monoid (CheckedEnv phases m) where
   mempty = CheckedEnv mempty mempty
 
+-- | Extract the underlying 'DynamicEnv' along with the dependency graph, without checking that all dependencies are satisfied.
 getUnchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 getUnchecked (CheckedEnv g d) = (g, d)
 
+-- | Either fail with a the set of missing dependencies, or
+-- succeed and produce the the underlying 'DynamicEnv' along with the
+-- dependency graph.
 checkEnv :: CheckedEnv phases m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
   let missing = HashSet.difference required provided 
