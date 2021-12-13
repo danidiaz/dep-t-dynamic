@@ -20,6 +20,29 @@
 -- components that are added to it, allowing you to check if all
 -- dependencies
 -- are satisfied before running the program logic.
+--
+-- >>> :{
+--  newtype Foo d = Foo {foo :: String -> d ()} deriving Generic
+--  newtype Bar d = Bar {bar :: String -> d ()} deriving Generic
+--  makeIOFoo :: MonadIO m => Foo m
+--  makeIOFoo = Foo (liftIO . putStrLn)
+--  makeBar :: Has Foo m env => env -> Bar m
+--  makeBar (asCall -> call) = Bar (call foo)
+--  env :: CheckedEnv Identity IO
+--  env = mempty 
+--      & checkedDep @Foo @'[]    @'[MonadIO] (fromBare (\_ -> makeIOFoo))
+--      & checkedDep @Bar @'[Foo] @'[]        (fromBare makeBar) 
+--  envReady :: DynamicEnv Identity IO
+--  envReady = 
+--    let Right (_, pullPhase -> Identity checked) = checkEnv env
+--     in fixEnv checked
+-- :}
+--
+-- >>> :{
+--  bar (dep envReady) "this is bar"
+-- :}
+-- this is bar
+--
 module Dep.SimpleChecked (
   -- * A checked environment
   CheckedEnv,
@@ -136,3 +159,29 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
 
 -- phaselessDep (no phases, only the constructor)
 --
+
+-- $setup
+--
+-- >>> :set -XTypeApplications
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XImportQualifiedPost
+-- >>> :set -XStandaloneKindSignatures
+-- >>> :set -XNamedFieldPuns
+-- >>> :set -XFunctionalDependencies
+-- >>> :set -XFlexibleContexts
+-- >>> :set -XDataKinds
+-- >>> :set -XBlockArguments
+-- >>> :set -XFlexibleInstances
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XViewPatterns
+-- >>> :set -XScopedTypeVariables
+-- >>> import Data.Kind
+-- >>> import Control.Monad.Dep
+-- >>> import Data.Function
+-- >>> import GHC.Generics (Generic)
+-- >>> import Dep.Has
+-- >>> import Dep.Env
+-- >>> import Dep.Dynamic
+-- >>> import Dep.SimpleChecked
+-- >>> import Dep.Advice (component, runFromDep)
