@@ -16,8 +16,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
 
--- | An environment which records the dependencies of all components that are added to it, allowing you to check if all
--- dependencies are satisfied before running the program logic.
+-- | This module provides an environment which tracks the dependencies of all
+-- components that are added to it, allowing you to check if all
+-- dependencies
+-- are satisfied before running the program logic.
 module Dep.SimpleChecked (
   -- * A checked environment
   CheckedEnv,
