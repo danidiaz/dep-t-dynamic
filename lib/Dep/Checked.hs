@@ -56,6 +56,24 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 data CheckedEnv phases rune_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT rune_ m))
 
+-- | Add a component to a 'CheckedEnv'.
+--
+-- __TYPE APPLICATIONS REQUIRED__. You must provide three types using @TypeApplications@:
+--
+-- * The type @r_@ of the parameterizable record we want to add to the environment.
+--
+-- * The type-level list @rs@ of the component types the @r_@ value depends on (might be empty).
+--
+-- * The type-level list @mcs@ of the constraints the @r_@ value requires from the base monad (might be empty).
+--
+-- It's impossible to add a component without explicitly listing all its dependencies. 
+--
+-- In addition, you must also provide the @phases (r_ (DepT e_ n))@ value, an implementation of the component that comes
+-- wrapped in some 'Applicative' phase. Notice that this value must be sufficiently polymorphic.
+--
+-- The @QuantifiedConstraint@ says that, whatever the environment the 'DepT' uses, if @DynamicEnv Identity n@ has a 'Has'
+-- constraint, the 'DepT' environment must also have that constraint. This is trivially true when they are the same type,
+-- but may also be true when the 'DepT' environment wraps the 'DynamicEnv' and defines passthrough 'Has' instances.
 checkedDep ::
   forall r_ rs mcs phases rune_ m.
   ( SOP.All R.Typeable rs,

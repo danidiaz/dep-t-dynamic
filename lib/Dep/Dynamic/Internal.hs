@@ -232,6 +232,8 @@ type family MonadSatisfiesAll cs m where
 
 -- | A summary graph of dependencies.  
 -- If the required dependencies are not a subset of the provided ones, the environment is not yet complete.
+--
+-- The graph datatypes come from the @algebraic-graphs@ package.
 data DepGraph = DepGraph
   { provided :: HashSet SomeDepRep, -- ^ components that have been inserted in the environment
     required :: HashSet SomeDepRep, -- ^ components that are required by other components in the environment
