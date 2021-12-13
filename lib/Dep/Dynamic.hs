@@ -87,6 +87,8 @@
 -- *** Exception: DepNotFound (Bar IO)
 --
 -- See `Dep.Checked` and `Dep.SimpleChecked` for safer (but still dynamically typed) approaches.
+--
+-- See also `Dep.Env.InductiveEnv` for a strongly-typed variant.
 module Dep.Dynamic
   (
   -- * A dynamic environment
