@@ -74,7 +74,7 @@ data CheckedEnv phases me_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT me_ 
 -- It's impossible to add a component without explicitly listing all its dependencies. 
 --
 -- In addition, you must also provide the @phases (r_ (DepT e_ n))@ value, an implementation of the component that comes
--- wrapped in some 'Applicative' phase. Notice that this value must be sufficiently polymorphic.
+-- wrapped in some 'Applicative'. Notice that this value must be sufficiently polymorphic.
 --
 -- The @QuantifiedConstraint@ says that, whatever the environment the 'DepT' uses, if @DynamicEnv Identity n@ has a 'Has'
 -- constraint, the 'DepT' environment must also have that constraint. This is trivially true when they are the same type,

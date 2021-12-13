@@ -55,6 +55,20 @@ import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
 
+-- | Add a component to a 'CheckedEnv'.
+--
+-- __TYPE APPLICATIONS REQUIRED__. You must provide three types using @TypeApplications@:
+--
+-- * The type @r_@ of the parameterizable record we want to add to the environment.
+--
+-- * The type-level list @rs@ of the component types the @r_@ value depends on (might be empty).
+--
+-- * The type-level list @mcs@ of the constraints the @r_@ value requires from the base monad (might be empty).
+--
+-- It's impossible to add a component without explicitly listing all its dependencies. 
+--
+-- In addition, you must also provide the @(phases `Compose` Constructor e)@ value, an implementation of the component that comes
+-- wrapped in some 'Applicative'. Notice that this value must be sufficiently polymorphic.
 checkedDep ::
   forall r_ rs mcs phases m.
   ( SOP.All R.Typeable rs,
