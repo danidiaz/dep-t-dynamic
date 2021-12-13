@@ -21,10 +21,12 @@
 -- Use 'Dep.SimpleChecked' instead when dependencies are handled in an 'Dep.Env.Constructor' phase.
 module Dep.Checked
   (
+  -- * A checked environment
   CheckedEnv,
   checkedDep,
   getUnchecked,
   checkEnv,
+  -- * The dependency graph
   DepGraph (..),
   SomeMonadConstraintRep (..),
   monadConstraintRep,
@@ -95,9 +97,13 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         }
    in CheckedEnv depGraph' (insertDep (f @rune_) de)
 
+-- | '(<>)' might result in over-restrictive dependency graphs, because
+-- dependencies for colliding components are kept even as only one of the
+-- components is kept.
 instance Semigroup (CheckedEnv phases rune_ m) where
   CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
+-- | 'mempty' is for creating the empty environment.
 instance Monoid (CheckedEnv phases rune_ m) where
   mempty = CheckedEnv mempty mempty
 

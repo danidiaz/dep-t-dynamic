@@ -17,10 +17,12 @@
 {-# LANGUAGE BlockArguments #-}
 
 module Dep.SimpleChecked (
+  -- * A checked environment
   CheckedEnv,
   checkedDep,
   getUnchecked,
   checkEnv,
+  -- * The dependency graph
   DepGraph (..),
   SomeMonadConstraintRep (..),
   monadConstraintRep,
@@ -88,31 +90,13 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
         }
    in CheckedEnv depGraph' (insertDep (f @(DynamicEnv Identity m) @m) de)
 
-
--- terminalDep ::
---   forall mcs r_ phases m. 
---   ( SOP.All R.Typeable mcs,
---     R.Typeable r_,
---     R.Typeable m,
---     R.Typeable phases,
---     Functor phases,
---     MonadSatisfiesAll mcs m
---   ) =>
---   -- | stuff
---   ( forall n.
---     ( 
---       MonadSatisfiesAll mcs n
---     ) =>
---     phases (r_ n)
---   ) ->
---   -- | stuff
---   CheckedEnv phases m ->
---   CheckedEnv phases m
--- terminalDep f = checkedDep @'[] @mcs @r_ @phases @m (Compose (f <&> \c -> constructor (const c)))
-
+-- | '(<>)' might result in over-restrictive dependency graphs, because
+-- dependencies for colliding components are kept even as only one of the
+-- components is kept.
 instance Semigroup (CheckedEnv phases m) where
   CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
+-- | 'mempty' is for creating the empty environment.
 instance Monoid (CheckedEnv phases m) where
   mempty = CheckedEnv mempty mempty
 

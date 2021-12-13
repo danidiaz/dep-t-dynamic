@@ -159,7 +159,7 @@ instance Phased DynamicEnv where
             R.withTypeable tr (withComponent tr dpair)
 
 -- | The type rep of a parameterizable record type. Similar to 'Type.Reflection.SomeTypeRep' 
--- but for values of a more specific kind.
+-- but for types of a more specific kind.
 data SomeDepRep where
     SomeDepRep :: forall (a :: (Type -> Type) -> Type) . !(R.TypeRep a) -> SomeDepRep
 
@@ -179,6 +179,8 @@ instance Show SomeDepRep where
 depRep :: forall (r_ :: (Type -> Type) -> Type) . R.Typeable r_ => SomeDepRep
 depRep = SomeDepRep (R.typeRep @r_)
 
+-- | The type rep of a constraint over a monad. Similar to 'Type.Reflection.SomeTypeRep' 
+-- but for types of a more specific kind.
 data SomeMonadConstraintRep where
   SomeMonadConstraintRep :: forall (a :: (Type -> Type) -> Constraint). !(R.TypeRep a) -> SomeMonadConstraintRep
 
@@ -228,11 +230,13 @@ type family MonadSatisfiesAll cs m where
   MonadSatisfiesAll '[] m = ()
   MonadSatisfiesAll (c : cs) m = (c m, MonadSatisfiesAll cs m)
 
+-- | A summary graph of dependencies.  
+-- If the required dependencies are not a subset of the provided ones, the environment is not yet complete.
 data DepGraph = DepGraph
-  { provided :: HashSet SomeDepRep,
-    required :: HashSet SomeDepRep,
-    depToDep :: Graph SomeDepRep, 
-    depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep
+  { provided :: HashSet SomeDepRep, -- ^ components that have been inserted in the environment
+    required :: HashSet SomeDepRep, -- ^ components that are required by other components in the environment
+    depToDep :: Graph SomeDepRep, -- ^ graph with dependencies components have on other components
+    depToMonad :: Bipartite.AdjacencyMap SomeDepRep SomeMonadConstraintRep -- ^ bipartite graph with the constraints components require from the effect monad
   }
 
 instance Semigroup DepGraph where 
