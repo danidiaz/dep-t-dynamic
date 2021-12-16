@@ -97,10 +97,10 @@ import Algebra.Graph
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 -- | A dependency injection environment for components with effects in the monad @(DepT me_ m)@.
--- Parameterized by 'Applicative' @phases@, the environment type constructor
+-- Parameterized by an 'Applicative' phase @h@, the environment type constructor
 -- @me_@ used by the 'DepT' transformer, and the type @m@ of the base
 -- monad.
-data CheckedEnv phases me_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT me_ m))
+data CheckedEnv h me_ m = CheckedEnv DepGraph (DynamicEnv h (DepT me_ m))
 
 -- | Add a component to a 'CheckedEnv'.
 --
@@ -114,18 +114,18 @@ data CheckedEnv phases me_ m = CheckedEnv DepGraph (DynamicEnv phases (DepT me_ 
 --
 -- It's impossible to add a component without explicitly listing all its dependencies. 
 --
--- In addition, you must also provide the @phases (r_ (DepT e_ n))@ value, an implementation of the component that comes
+-- In addition, you must also provide the @h (r_ (DepT e_ n))@ value, an implementation of the component that comes
 -- wrapped in some 'Applicative'. Notice that this value must be sufficiently polymorphic.
 --
 -- The @QuantifiedConstraint@ says that, whatever the environment the 'DepT' uses, if @DynamicEnv Identity n@ has a 'Has'
 -- constraint, the 'DepT' environment must also have that constraint. This is trivially true when they are the same type,
 -- but may also be true when the 'DepT' environment wraps the 'DynamicEnv' and defines passthrough 'Has' instances.
 checkedDep ::
-  forall r_ rs mcs phases me_ m.
+  forall r_ rs mcs h me_ m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
-    R.Typeable phases,
+    R.Typeable h,
     R.Typeable me_,
     R.Typeable m,
     HasAll rs (DepT me_ m) (me_ (DepT me_ m)),
@@ -139,11 +139,11 @@ checkedDep ::
       Monad n, 
       MonadSatisfiesAll mcs (DepT e_ n)
     ) =>
-    phases (r_ (DepT e_ n))
+    h (r_ (DepT e_ n))
   ) ->
   -- | The environment in which to insert
-  CheckedEnv phases me_ m ->
-  CheckedEnv phases me_ m
+  CheckedEnv h me_ m ->
+  CheckedEnv h me_ m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
@@ -164,21 +164,21 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
 -- | '(<>)' might result in over-restrictive dependency graphs, because
 -- dependencies for colliding components are kept even as only one of the
 -- components is kept.
-instance Semigroup (CheckedEnv phases me_ m) where
+instance Semigroup (CheckedEnv h me_ m) where
   CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
 -- | 'mempty' is for creating the empty environment.
-instance Monoid (CheckedEnv phases me_ m) where
+instance Monoid (CheckedEnv h me_ m) where
   mempty = CheckedEnv mempty mempty
 
 -- | Extract the underlying 'DynamicEnv' along with the dependency graph, without checking that all dependencies are satisfied.
-getUnchecked :: CheckedEnv phases me_ m -> (DepGraph, DynamicEnv phases (DepT me_ m))
+getUnchecked :: CheckedEnv h me_ m -> (DepGraph, DynamicEnv h (DepT me_ m))
 getUnchecked (CheckedEnv g d) = (g, d)
 
 -- | Either fail with a the set of missing dependencies, or
 -- succeed and produce the the underlying 'DynamicEnv' along with the
 -- dependency graph.
-checkEnv :: CheckedEnv phases me_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv phases (DepT me_ m))
+checkEnv :: CheckedEnv h me_ m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv h (DepT me_ m))
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
   let missing = HashSet.difference required provided 
    in if HashSet.null missing

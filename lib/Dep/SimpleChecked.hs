@@ -91,8 +91,8 @@ import Algebra.Graph
 import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 
 -- | A dependency injection environment for components with effects in the monad @m@.
--- Parameterized by 'Applicative' @phases@, and the type @m@ of the effect monad.
-data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+-- Parameterized by an 'Applicative' phase @h@, and the type @m@ of the effect monad.
+data CheckedEnv h m = CheckedEnv DepGraph (DynamicEnv (h `Compose` Constructor (DynamicEnv Identity m)) m)
 
 -- | Add a component to a 'CheckedEnv'.
 --
@@ -106,14 +106,14 @@ data CheckedEnv phases m = CheckedEnv DepGraph (DynamicEnv (phases `Compose` Con
 --
 -- It's impossible to add a component without explicitly listing all its dependencies. 
 --
--- In addition, you must also provide the @(phases `Compose` Constructor e)@ value, an implementation of the component that comes
+-- In addition, you must also provide the @(h `Compose` Constructor e)@ value, an implementation of the component that comes
 -- wrapped in some 'Applicative'. Notice that this value must be sufficiently polymorphic.
 checkedDep ::
-  forall r_ rs mcs phases m.
+  forall r_ rs mcs h m.
   ( SOP.All R.Typeable rs,
     SOP.All R.Typeable mcs,
     R.Typeable r_,
-    R.Typeable phases,
+    R.Typeable h,
     R.Typeable m,
     HasAll rs m (DynamicEnv Identity m),
     Monad m, 
@@ -125,11 +125,11 @@ checkedDep ::
       Monad m, 
       MonadSatisfiesAll mcs n
     ) =>
-    (phases `Compose` Constructor e) (r_ n)
+    (h `Compose` Constructor e) (r_ n)
   ) ->
   -- | The environment in which to insert
-  CheckedEnv phases m ->
-  CheckedEnv phases m
+  CheckedEnv h m ->
+  CheckedEnv h m
 checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
   let demoteDep :: forall (x :: (Type -> Type) -> Type). R.Typeable x => K SomeDepRep x
       demoteDep = K (depRep @x)
@@ -150,21 +150,21 @@ checkedDep f (CheckedEnv DepGraph {provided,required,depToDep,depToMonad} de) =
 -- | '(<>)' might result in over-restrictive dependency graphs, because
 -- dependencies for colliding components are kept even as only one of the
 -- components is kept.
-instance Semigroup (CheckedEnv phases m) where
+instance Semigroup (CheckedEnv h m) where
   CheckedEnv g1 env1 <> CheckedEnv g2 env2 = CheckedEnv (g1 <> g2) (env1 <> env2)
 
 -- | 'mempty' is for creating the empty environment.
-instance Monoid (CheckedEnv phases m) where
+instance Monoid (CheckedEnv h m) where
   mempty = CheckedEnv mempty mempty
 
 -- | Extract the underlying 'DynamicEnv' along with the dependency graph, without checking that all dependencies are satisfied.
-getUnchecked :: CheckedEnv phases m -> (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+getUnchecked :: CheckedEnv h m -> (DepGraph, DynamicEnv (h `Compose` Constructor (DynamicEnv Identity m)) m)
 getUnchecked (CheckedEnv g d) = (g, d)
 
 -- | Either fail with a the set of missing dependencies, or
 -- succeed and produce the the underlying 'DynamicEnv' along with the
 -- dependency graph.
-checkEnv :: CheckedEnv phases m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv (phases `Compose` Constructor (DynamicEnv Identity m)) m)
+checkEnv :: CheckedEnv h m -> Either (HashSet SomeDepRep) (DepGraph, DynamicEnv (h `Compose` Constructor (DynamicEnv Identity m)) m)
 checkEnv (CheckedEnv g@DepGraph {required,provided} d) = 
   let missing = HashSet.difference required provided 
    in if HashSet.null missing
