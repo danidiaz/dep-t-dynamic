@@ -1,7 +1,7 @@
 cabal-version:       3.0
 
 name:                dep-t-dynamic
-version:             0.2.0.0
+version:             0.1.0.1
 synopsis:            A dynamic environment for dependency injection.
 description:         This library is a companion to "dep-t". It provides "environments"
                      into which you 
