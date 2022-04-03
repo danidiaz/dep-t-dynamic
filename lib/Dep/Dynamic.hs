@@ -133,7 +133,6 @@ import GHC.TypeLits
 import Type.Reflection qualified as R
 import Data.Hashable
 import Algebra.Graph 
-import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
 import Dep.Dynamic.Internal
 import Data.Monoid
 

@@ -88,7 +88,7 @@ import GHC.TypeLits
 import Type.Reflection qualified as R
 import Data.Functor
 import Algebra.Graph 
-import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
+import qualified Algebra.Graph.Bipartite.AdjacencyMap as Bipartite
 
 -- | A dependency injection environment for components with effects in the monad @m@.
 -- Parameterized by an 'Applicative' phase @h@, and the type @m@ of the effect monad.

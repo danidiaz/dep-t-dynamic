@@ -49,7 +49,7 @@ import GHC.TypeLits
 import Type.Reflection qualified as R
 import Data.Hashable
 import Algebra.Graph 
-import qualified Algebra.Graph.Bipartite.Undirected.AdjacencyMap as Bipartite
+import qualified Algebra.Graph.Bipartite.AdjacencyMap as Bipartite
 
 
 -- | The type rep of a constraint over a monad. Similar to 'Type.Reflection.SomeTypeRep' 
