@@ -98,12 +98,11 @@ module Dep.Dynamic
   , DepNotFound (..)
   , SomeDepRep (..)
   , depRep
-  -- * Helpers for defining phases
+  -- * Re-exports
+  , mempty
   , Bare
   , fromBare
   , toBare
-  -- * Re-exports
-  , mempty
   )
 where
 
@@ -245,49 +244,6 @@ instance Phased DynamicEnv where
       dynTrans k dpair = case k of
         SomeDepRep tr -> 
             R.withTypeable tr (withComponent tr dpair)
-
--- | This type family clears newtypes like 'Compose', 'Identity' and 'Constant' from a composite type,
--- leaving you with a newtypeless nested type as result.
---
--- The idea is that it might be easier to construct values of the \"bare\" version of a composite type,
--- and later coerce them to the newtyped version using 'fromBare'.
---
--- This is mainly intended for defining the nested 'Applicative' \"phases\" of components that live in a 'Phased'
--- environment. It's an alternative to functions like `Dep.Env.bindPhase' and 'Dep.Env.skipPhase'.
-type Bare :: Type -> Type
-type family Bare x where
-  Bare (Compose outer inner x) = Bare (outer (Bare (inner x)))
-  Bare (Identity x) = Bare x
-  Bare (Const x k) = Bare x
-  Bare (Constant x k) = Bare x
-  Bare other = other
-
--- | Convert a value from its bare version to the newtyped one, usually as a step
--- towards inserting it into a 'Phased' environment.
---
--- >>> :{
--- type Phases = IO `Compose` IO `Compose` IO
--- wrapped :: Phases Int = fromBare $ pure $ pure $ pure 3
--- :}
---
--- >>> :{
--- type Phases = Constructor Int
--- wrapped :: Phases Int
--- wrapped = fromBare $ succ
--- :}
---
--- >>> :{
--- type Phases = IO `Compose` Constructor Int
--- wrapped :: Phases Int
--- wrapped = fromBare $ pure $ succ
--- :}
---
-fromBare :: Coercible phases (Bare phases) => Bare phases -> phases
-fromBare = coerce
-
--- | Convert from the newtyped value to the bare one. 'fromBare' tends to be more useful.
-toBare :: Coercible phases (Bare phases) => phases -> Bare phases
-toBare = coerce
 
 -- $setup
 --
