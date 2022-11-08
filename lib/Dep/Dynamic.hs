@@ -199,7 +199,7 @@ instance Phased DynamicEnv where
         , Typeable h
         , Typeable m
         )
-        => (forall x . h x -> f (g x)) 
+        => (forall x . Typeable x => h x -> f (g x)) 
         -> DynamicEnv h m 
         -> f (DynamicEnv g m)
     traverseH trans (DynamicEnv dict) = DynamicEnv <$> H.traverseWithKey dynTrans dict
@@ -223,7 +223,7 @@ instance Phased DynamicEnv where
         , Typeable f'
         , Typeable m
         ) =>
-        (forall x. a x -> f x -> f' x) ->
+        (forall x. Typeable x => a x -> f x -> f' x) ->
         -- |
         DynamicEnv a m ->
         -- |
