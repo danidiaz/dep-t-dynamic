@@ -1,7 +1,7 @@
 cabal-version:       3.0
 
 name:                dep-t-dynamic
-version:             0.1.1.0
+version:             0.1.2.0
 synopsis:            A dynamic environment for dependency injection.
 description:         This library is a companion to "dep-t". It provides "environments"
                      into which you 
@@ -31,11 +31,11 @@ source-repository    head
 common common
   build-depends:       base >= 4.10.0.0 && < 5,
                        transformers >= 0.5.0.0,
-                       dep-t >= 0.6.4.0 && < 0.7,
+                       dep-t ^>= 0.6.8.0,
                        unordered-containers >= 0.2.14,
                        hashable >= 1.0.1.1,
                        sop-core ^>= 0.5.0.0,
-                       algebraic-graphs ^>= 0.6
+                       algebraic-graphs ^>= 0.7
   default-language:    Haskell2010
 
 library
@@ -49,9 +49,8 @@ library
 common common-tests
   import:              common
   build-depends:       
-                       dep-t-advice, 
-                       dep-t, 
                        dep-t-dynamic, 
+                       dep-t-advice >= 0.6.2.0, 
                        template-haskell,
                        text,
                        unliftio-core >= 0.2.0.0,
@@ -72,7 +71,7 @@ test-suite tests
     dep-t, 
     dep-t-dynamic, 
     template-haskell,
-    aeson              ^>= 2.0,
+    aeson              >= 2.0,
     bytestring,
     text,
     containers
@@ -89,14 +88,11 @@ test-suite synthetic-callstack-tests
 -- VERY IMPORTANT for doctests to work: https://stackoverflow.com/a/58027909/1364288
 -- http://hackage.haskell.org/package/cabal-doctest
 test-suite doctests
-  import:              common
+  import:              common-tests
   ghc-options:         -threaded
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             doctests.hs
   build-depends:       
-                       dep-t, 
-                       dep-t-dynamic,
-                       dep-t-advice,
                        doctest            ^>= 0.20,
 

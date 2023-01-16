@@ -201,6 +201,7 @@ checkEnv (CheckedEnv g@DepGraph {required,provided} d) =
 -- >>> :set -XDeriveGeneric
 -- >>> :set -XViewPatterns
 -- >>> :set -XScopedTypeVariables
+-- >>> :set -fno-warn-deprecations
 -- >>> import Data.Kind
 -- >>> import Control.Monad.Dep
 -- >>> import Data.Function

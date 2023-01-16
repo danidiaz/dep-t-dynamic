@@ -262,6 +262,7 @@ instance Phased DynamicEnv where
 -- >>> :set -XViewPatterns
 -- >>> :set -XScopedTypeVariables
 -- >>> :set -XTypeOperators
+-- >>> :set -fno-warn-deprecations
 -- >>> import Data.Kind
 -- >>> import Control.Monad.Dep
 -- >>> import Data.Function
