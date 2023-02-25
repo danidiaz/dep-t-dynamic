@@ -72,7 +72,7 @@ test-suite tests
     dep-t, 
     dep-t-dynamic, 
     template-haskell,
-    aeson              ^>= 2.0,
+    aeson              >= 2.0,
     bytestring,
     text,
     containers
